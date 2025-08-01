@@ -21,6 +21,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.codewithfk.expensetracker.android.feature.add_expense.AddExpense
+import com.codewithfk.expensetracker.android.feature.dashboard.DashboardScreen
 import com.codewithfk.expensetracker.android.feature.home.HomeScreen
 import com.codewithfk.expensetracker.android.feature.stats.StatsScreen
 import com.codewithfk.expensetracker.android.ui.theme.Zinc
@@ -38,6 +39,7 @@ fun NavHostScreen() {
                 navController = navController,
                 items = listOf(
                     NavItem(route = "/home", icon = R.drawable.ic_home),
+                    NavItem(route = "/dashboard", icon = R.drawable.ic_dashboard),
                     NavItem(route = "/stats", icon = R.drawable.ic_stats)
                 )
             )
@@ -60,6 +62,11 @@ fun NavHostScreen() {
             composable(route = "/add_exp") {
                 bottomBarVisibility = false
                 AddExpense(navController, isIncome = false)
+            }
+
+            composable(route = "/dashboard") {
+                bottomBarVisibility = true
+                DashboardScreen(navController)
             }
 
             composable(route = "/stats") {
