@@ -16,6 +16,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -33,6 +37,7 @@ import com.github.mikephil.charting.components.XAxis
 import com.github.mikephil.charting.components.YAxis
 import com.github.mikephil.charting.data.Entry
 import com.github.mikephil.charting.data.LineDataSet
+import androidx.core.graphics.toColorInt
 
 @Composable
 fun StatsScreen(navController: NavController, viewModel: StatsViewModel= hiltViewModel()) {
@@ -48,7 +53,7 @@ fun StatsScreen(navController: NavController, viewModel: StatsViewModel= hiltVie
                 modifier = Modifier.align(
                     Alignment.CenterStart
                 ),
-                colorFilter = androidx.compose.ui.graphics.ColorFilter.tint(Color.Black)
+                colorFilter = androidx.compose.ui.graphics.ColorFilter.tint(MaterialTheme.colorScheme.onSurface)
             )
             ExpenseTextView(
                 text = "Statistics",
@@ -62,7 +67,7 @@ fun StatsScreen(navController: NavController, viewModel: StatsViewModel= hiltVie
                 painter = painterResource(id = R.drawable.dots_menu),
                 contentDescription = null,
                 modifier = Modifier.align(Alignment.CenterEnd),
-                colorFilter = androidx.compose.ui.graphics.ColorFilter.tint(Color.Black)
+                colorFilter = androidx.compose.ui.graphics.ColorFilter.tint(MaterialTheme.colorScheme.onSurface)
             )
         }
     }) {
@@ -80,6 +85,10 @@ fun StatsScreen(navController: NavController, viewModel: StatsViewModel= hiltVie
 @Composable
 fun LineChart(entries: List<Entry>) {
     val context = LocalContext.current
+    val isDarkMode = MaterialTheme.colorScheme.background.luminance() < 0.5
+    var textColor = if (isDarkMode) android.graphics.Color.WHITE else android.graphics.Color.BLACK
+    val primaryColor = "#FF2F7E79".toColorInt()
+
     AndroidView(
         factory = {
             val view = LayoutInflater.from(context).inflate(R.layout.stats_line_chart, null)
@@ -91,35 +100,49 @@ fun LineChart(entries: List<Entry>) {
         val lineChart = view.findViewById<LineChart>(R.id.lineChart)
 
         val dataSet = LineDataSet(entries, "Expenses").apply {
-            color = android.graphics.Color.parseColor("#FF2F7E79")
-            valueTextColor = android.graphics.Color.BLACK
+            color = primaryColor
+            valueTextColor = textColor
             lineWidth = 3f
             axisDependency = YAxis.AxisDependency.RIGHT
             setDrawFilled(true)
             mode = LineDataSet.Mode.CUBIC_BEZIER
             valueTextSize = 12f
-            valueTextColor = android.graphics.Color.parseColor("#FF2F7E79")
+            valueTextColor = primaryColor
             val drawable = ContextCompat.getDrawable(context, R.drawable.char_gradient)
             drawable?.let {
                 fillDrawable = it
             }
-
         }
 
-        lineChart.xAxis.valueFormatter =
-            object : com.github.mikephil.charting.formatter.ValueFormatter() {
-                override fun getFormattedValue(value: Float): String {
-                    return Utils.formatDateForChart(value.toLong())
+        lineChart.apply {
+            xAxis.apply {
+                valueFormatter = object : com.github.mikephil.charting.formatter.ValueFormatter() {
+                    override fun getFormattedValue(value: Float): String {
+                        return Utils.formatDateForChart(value.toLong())
+                    }
                 }
+                position = XAxis.XAxisPosition.BOTTOM
+                setDrawGridLines(false)
+                setDrawAxisLine(false)
             }
-        lineChart.data = com.github.mikephil.charting.data.LineData(dataSet)
-        lineChart.axisLeft.isEnabled = false
-        lineChart.axisRight.isEnabled = false
-        lineChart.axisRight.setDrawGridLines(false)
-        lineChart.axisLeft.setDrawGridLines(false)
-        lineChart.xAxis.setDrawGridLines(false)
-        lineChart.xAxis.setDrawAxisLine(false)
-        lineChart.xAxis.position = XAxis.XAxisPosition.BOTTOM
-        lineChart.invalidate()
+
+            axisLeft.apply {
+                isEnabled = false
+                setDrawGridLines(false)
+            }
+
+            axisRight.apply {
+                isEnabled = false
+                setDrawGridLines(false)
+                textColor = textColor
+            }
+
+            legend.textColor = textColor
+            description.textColor = textColor
+            
+            setBackgroundColor(if (isDarkMode) android.graphics.Color.TRANSPARENT else android.graphics.Color.WHITE)
+            data = com.github.mikephil.charting.data.LineData(dataSet)
+            invalidate()
+        }
     }
 }

@@ -45,12 +45,12 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
 import com.codewithfk.expensetracker.android.data.model.ExpenseEntity
-import com.codewithfk.expensetracker.android.ui.theme.Zinc
 import com.codewithfk.expensetracker.android.viewmodel.HomeViewModel
 import com.codewithfk.expensetracker.android.widget.ExpenseTextView
 import com.codewithfk.expensetracker.android.R
 import com.codewithfk.expensetracker.android.ui.theme.Green
 import com.codewithfk.expensetracker.android.ui.theme.LightGrey
+import com.codewithfk.expensetracker.android.ui.theme.LightPrimary
 import com.codewithfk.expensetracker.android.ui.theme.Red
 import com.codewithfk.expensetracker.android.ui.theme.Typography
 import com.codewithfk.expensetracker.android.utils.Utils
@@ -196,7 +196,7 @@ fun CardItem(
             .fillMaxWidth()
             .height(200.dp)
             .clip(RoundedCornerShape(16.dp))
-            .background(Zinc)
+            .background(LightPrimary)
             .padding(16.dp)
     ) {
         Box(
