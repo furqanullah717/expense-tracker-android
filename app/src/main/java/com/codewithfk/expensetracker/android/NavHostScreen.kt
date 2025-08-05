@@ -1,8 +1,6 @@
 package com.codewithfk.expensetracker.android
 
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.*
 import androidx.compose.ui.res.painterResource
@@ -15,7 +13,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.res.painterResource
 import androidx.navigation.NavController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -27,10 +24,7 @@ import com.codewithfk.expensetracker.android.feature.home.HomeScreen
 import com.codewithfk.expensetracker.android.feature.stats.StatsScreen
 import com.codewithfk.expensetracker.android.feature.settings.SettingsScreen
 import com.codewithfk.expensetracker.android.ui.theme.LightPrimary
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.unit.dp
 import com.codewithfk.expensetracker.android.ui.theme.ThemeViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
