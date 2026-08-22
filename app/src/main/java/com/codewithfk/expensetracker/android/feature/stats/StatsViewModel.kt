@@ -20,7 +20,7 @@ class StatsViewModel @Inject constructor(val dao: ExpenseDao) : BaseViewModel() 
             val formattedDate = Utils.getMillisFromDate(entry.date)
             list.add(Entry(formattedDate.toFloat(), entry.total_amount.toFloat()))
         }
-        return list
+        return list.sortedBy { it.x }
     }
 
     override fun onEvent(event: UiEvent) {

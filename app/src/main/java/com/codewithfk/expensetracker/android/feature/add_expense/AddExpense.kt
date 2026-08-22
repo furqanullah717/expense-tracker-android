@@ -107,7 +107,7 @@ fun AddExpense(
                             viewModel.onEvent(AddExpenseUiEvent.OnBackPressed)
                         })
                 ExpenseTextView(
-                    text = "Add ${if (isIncome) "Income" else "Expense"}",
+                    text = "${if (isIncome) "수입" else "지출"} 추가",
                     style = Typography.titleLarge,
                     color = Color.White,
                     modifier = Modifier
@@ -129,7 +129,7 @@ fun AddExpense(
                         onDismissRequest = { menuExpanded.value = false }
                     ) {
                         DropdownMenuItem(
-                            text = { ExpenseTextView(text = "Profile") },
+                            text = { ExpenseTextView(text = "프로필") },
                             onClick = {
                                 menuExpanded.value = false
                                 // Navigate to profile screen
@@ -137,7 +137,7 @@ fun AddExpense(
                             }
                         )
                         DropdownMenuItem(
-                            text = { ExpenseTextView(text = "Settings") },
+                            text = { ExpenseTextView(text = "설정") },
                             onClick = {
                                 menuExpanded.value = false
                                 // Navigate to settings screen
@@ -193,48 +193,46 @@ fun DataForm(
             .padding(16.dp)
             .verticalScroll(rememberScrollState())
     ) {
-        TitleComponent(title = "name")
+        TitleComponent(title = "이름/카테고리")
         ExpenseDropDown(
             if (isIncome) listOf(
-                "Paypal",
-                "Salary",
-                "Freelance",
-                "Investments",
-                "Bonus",
-                "Rental Income",
-                "Other Income"
+                "월급",
+                "프리랜서",
+                "투자",
+                "보너스",
+                "임대 수입",
+                "기타 수입"
             ) else listOf(
-                "Grocery",
-                "Netflix",
-                "Rent",
-                "Paypal",
-                "Starbucks",
-                "Shopping",
-                "Transport",
-                "Utilities",
-                "Dining Out",
-                "Entertainment",
-                "Healthcare",
-                "Insurance",
-                "Subscriptions",
-                "Education",
-                "Debt Payments",
-                "Gifts & Donations",
-                "Travel",
-                "Other Expenses"
+                "식비",
+                "넷플릭스",
+                "월세",
+                "카페/스타벅스",
+                "쇼핑",
+                "교통비",
+                "공과금",
+                "외식",
+                "문화생활",
+                "의료/건강",
+                "보험",
+                "통신/구독",
+                "교육",
+                "대출 상환",
+                "선물/기부",
+                "여행",
+                "기타 지출"
             ),
             onItemSelected = {
                 name.value = it
             })
         Spacer(modifier = Modifier.size(24.dp))
-        TitleComponent("amount")
+        TitleComponent("금액")
         OutlinedTextField(
             value = amount.value,
             onValueChange = { newValue ->
                 amount.value = newValue.filter { it.isDigit() || it == '.' }
             }, textStyle = TextStyle(color = Color.Black),
             visualTransformation = { text ->
-                val out = "$" + text.text
+                val out = "₩" + text.text
                 val currencyOffsetTranslator = object : OffsetMapping {
                     override fun originalToTransformed(offset: Int): Int {
                         return offset + 1
@@ -249,7 +247,7 @@ fun DataForm(
             },
             modifier = Modifier.fillMaxWidth(),
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-            placeholder = { ExpenseTextView(text = "Enter amount") },
+            placeholder = { ExpenseTextView(text = "금액을 입력하세요") },
             colors = OutlinedTextFieldDefaults.colors(
                 focusedBorderColor = Color.Black,
                 unfocusedBorderColor = Color.Black,
@@ -259,7 +257,7 @@ fun DataForm(
             )
         )
         Spacer(modifier = Modifier.size(24.dp))
-        TitleComponent("date")
+        TitleComponent("날짜")
         OutlinedTextField(value = if (date.longValue == 0L) "" else Utils.formatDateToHumanReadableForm(
             date.longValue
         ),
@@ -272,7 +270,7 @@ fun DataForm(
                 disabledBorderColor = Color.Black, disabledTextColor = Color.Black,
                 disabledPlaceholderColor = Color.Black,
             ),
-            placeholder = { ExpenseTextView(text = "Select date") })
+            placeholder = { ExpenseTextView(text = "날짜 선택") })
         Spacer(modifier = Modifier.size(24.dp))
         Button(
             onClick = {
@@ -287,7 +285,7 @@ fun DataForm(
             }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(8.dp)
         ) {
             ExpenseTextView(
-                text = "Add ${if (isIncome) "Income" else "Expense"}",
+                text = "${if (isIncome) "수입" else "지출"} 추가",
                 fontSize = 14.sp,
                 color = Color.White
             )
@@ -312,11 +310,11 @@ fun ExpenseDatePickerDialog(
     val selectedDate = datePickerState.selectedDateMillis ?: 0L
     DatePickerDialog(onDismissRequest = { onDismiss() }, confirmButton = {
         TextButton(onClick = { onDateSelected(selectedDate) }) {
-            ExpenseTextView(text = "Confirm")
+            ExpenseTextView(text = "확인")
         }
     }, dismissButton = {
         TextButton(onClick = { onDateSelected(selectedDate) }) {
-            ExpenseTextView(text = "Cancel")
+            ExpenseTextView(text = "취소")
         }
     }) {
         DatePicker(state = datePickerState)

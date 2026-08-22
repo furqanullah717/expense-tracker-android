@@ -55,7 +55,7 @@ fun StatsScreen(navController: NavController, viewModel: StatsViewModel = hiltVi
                 colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.outline)
             )
             ExpenseTextView(
-                text = "Statistics",
+                text = "통계",
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier
@@ -76,7 +76,9 @@ fun StatsScreen(navController: NavController, viewModel: StatsViewModel = hiltVi
             val entries = viewModel.getEntriesForChart(dataState.value)
             LineChart(entries = entries)
             Spacer(modifier = Modifier.height(16.dp))
-            TransactionList(Modifier, list = topExpense.value, "Top Spending", onSeeAllClicked = {})
+            TransactionList(Modifier, list = topExpense.value, "주요 지출 항목", onSeeAllClicked = {}, onTransactionClicked = {
+                navController.navigate("/transaction_detail/${it.id}")
+            })
         }
     }
 }
@@ -94,7 +96,7 @@ fun LineChart(entries: List<Entry>) {
     ) { view ->
         val lineChart = view.findViewById<LineChart>(R.id.lineChart)
 
-        val dataSet = LineDataSet(entries, "Expenses").apply {
+        val dataSet = LineDataSet(entries, "지출 내역").apply {
             color = android.graphics.Color.parseColor("#FF2F7E79")
             valueTextColor = android.graphics.Color.BLACK
             lineWidth = 3f
@@ -117,6 +119,10 @@ fun LineChart(entries: List<Entry>) {
                 }
             }
         lineChart.data = com.github.mikephil.charting.data.LineData(dataSet)
+        lineChart.description.isEnabled = false
+        lineChart.legend.isEnabled = false
+        lineChart.xAxis.granularity = 86400000f // 1 day in ms
+        lineChart.xAxis.labelCount = 5
         lineChart.axisLeft.isEnabled = false
         lineChart.axisRight.isEnabled = false
         lineChart.axisRight.setDrawGridLines(false)

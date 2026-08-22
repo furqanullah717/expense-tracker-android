@@ -42,7 +42,7 @@ android {
         compose = true
     }
     composeOptions {
-        kotlinCompilerExtensionVersion = "1.5.1"
+        kotlinCompilerExtensionVersion = "1.5.14"
     }
     packaging {
         resources {
@@ -64,6 +64,9 @@ dependencies {
     implementation(libs.constraintlayout)
     implementation("androidx.constraintlayout:constraintlayout-compose:1.0.1")
     implementation(libs.firebase.database.ktx)
+    implementation(platform(libs.firebase.bom))
+    implementation(libs.firebase.vertexai)
+    implementation(libs.google.ai.client)
     testImplementation(libs.junit)
     implementation(libs.dagger.hilt.andriod)
     kapt(libs.dagger.hilt.compiler)
