@@ -70,7 +70,7 @@ fun LoginScreen(
 
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(
-                text = "RAGent",
+                text = "MYAG",
                 style = MaterialTheme.typography.displaySmall,
                 color = MaterialTheme.colorScheme.onBackground,
                 fontWeight = FontWeight.Bold
@@ -79,7 +79,12 @@ fun LoginScreen(
             Spacer(Modifier.height(12.dp))
 
             Text(
-                text = "AI Agent와 함께 프로젝트를 탐색하세요",
+                text = "Make Your Assets Great",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Text(
+                text = "with AI Agent",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )

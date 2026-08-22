@@ -150,10 +150,6 @@ fun StatsScreen(navController: NavController, viewModel: StatsViewModel = hiltVi
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
         ) {
-            val entries = viewModel.getEntriesForChart(dataState.value)
-            LineChart(entries = entries)
-
-            Spacer(modifier = Modifier.height(16.dp))
 
             // AI Analysis Section
             AiAnalysisSection(
@@ -163,7 +159,9 @@ fun StatsScreen(navController: NavController, viewModel: StatsViewModel = hiltVi
                 onAnalyzeClick = { showDateRangeDialog = true },
                 onViewHistoryClick = { navController.navigate("/ai_history") }
             )
-
+            Spacer(modifier = Modifier.height(16.dp))
+            val entries = viewModel.getEntriesForChart(dataState.value)
+            LineChart(entries = entries)
             Spacer(modifier = Modifier.height(16.dp))
             TransactionList(
                 Modifier.height(400.dp),
@@ -536,14 +534,16 @@ fun LineChart(entries: List<Entry>) {
         lineChart.xAxis.valueFormatter =
             object : com.github.mikephil.charting.formatter.ValueFormatter() {
                 override fun getFormattedValue(value: Float): String {
-                    return Utils.formatDateForChart(value.toLong())
+                    // 월별 출력을 위해 포맷 변경 (예: 8월)
+                    val sdf = java.text.SimpleDateFormat("yy년 M월", java.util.Locale.KOREAN)
+                    return sdf.format(java.util.Date(value.toLong()))
                 }
             }
         lineChart.data = com.github.mikephil.charting.data.LineData(dataSet)
         lineChart.description.isEnabled = false
         lineChart.legend.isEnabled = false
-        lineChart.xAxis.granularity = 86400000f // 1 day in ms
-        lineChart.xAxis.labelCount = 5
+        lineChart.xAxis.granularity = 2592000000f // 약 30일 (Monthly)
+        lineChart.xAxis.labelCount = 6
         lineChart.axisLeft.isEnabled = false
         lineChart.axisRight.isEnabled = false
         lineChart.axisRight.setDrawGridLines(false)

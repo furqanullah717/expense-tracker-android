@@ -172,10 +172,26 @@ class StatsViewModel @Inject constructor(
     }
 
     fun getEntriesForChart(entries: List<ExpenseSummary>): List<Entry> {
-        val list = mutableListOf<Entry>()
+        val monthlyMap = mutableMapOf<Long, Double>()
+        val calendar = java.util.Calendar.getInstance()
+
         for (entry in entries) {
-            val formattedDate = Utils.getMillisFromDate(entry.date)
-            list.add(Entry(formattedDate.toFloat(), entry.total_amount.toFloat()))
+            val millis = Utils.getMillisFromDate(entry.date)
+            calendar.timeInMillis = millis
+            // 해당 월의 1일로 설정하여 월별 그룹화
+            calendar.set(java.util.Calendar.DAY_OF_MONTH, 1)
+            calendar.set(java.util.Calendar.HOUR_OF_DAY, 0)
+            calendar.set(java.util.Calendar.MINUTE, 0)
+            calendar.set(java.util.Calendar.SECOND, 0)
+            calendar.set(java.util.Calendar.MILLISECOND, 0)
+
+            val monthStart = calendar.timeInMillis
+            monthlyMap[monthStart] = (monthlyMap[monthStart] ?: 0.0) + entry.total_amount
+        }
+
+        val list = mutableListOf<Entry>()
+        for ((monthStart, total) in monthlyMap) {
+            list.add(Entry(monthStart.toFloat(), total.toFloat()))
         }
         return list.sortedBy { it.x }
     }

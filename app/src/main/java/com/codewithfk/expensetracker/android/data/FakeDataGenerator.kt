@@ -11,333 +11,97 @@ import java.util.Locale
  * - 10개년 데이터 (3,652일): 10년 전(과장/차장) ~ 현재(팀장/부장)
  * - 10년 전 월급: 약 520만 원 -> 현재 월급: 약 940만 원 (10개년 승진/호봉 곡선 반영, 매월 25일)
  * - 1년에 3회 보너스 (10만~99만 원 사이)
- * - 고정비 (특정일에 월 1회만 결제하여 중복/비정상 누적 방지):
- *     5일: 첫째 자녀 교육/학원비 (연차별 성장 반영)
- *    10일: 아파트 관리비/공과금 (물가 상승 반영)
- *    15일: 가족 결합 통신비 (월 1회 고정)
- *    18일: 둘째 자녀 교육/과외비 (연차별 성장 반영)
- *    20일: 가족 통합보장보험료
- * - 10개년 대형 이상치(Outliers): 유럽 여행, 신차 교체, 인테리어, 입시 컨설팅, 명절 부모님 용돈 등
- * - 1일 1건 제약 엄격 준수 (비교 실험용)
  */
 object FakeDataGenerator {
 
     private data class CategoryItem(val title: String, val range: IntRange)
 
-    // -------------------------------------------------------------
-    // 1. 카테고리별 아이템 목록 (상호명 + 금액 범위)
-    // -------------------------------------------------------------
     private val categoryItems: Map<String, List<CategoryItem>> = mapOf(
-        "식비/장보기" to listOf(
-            CategoryItem("이마트 트레이더스 주말 장보기", 120_000..240_000),
-            CategoryItem("코스트코 주말 대량 장보기", 180_000..320_000),
-            CategoryItem("쿠팡 로켓프레시 신선식품", 45_000..95_000),
-            CategoryItem("홈플러스 장보기", 80_000..180_000)
-        ),
-        "카페/간식" to listOf(
-            CategoryItem("스타벅스 DT점 커피", 12_000..25_000),
-            CategoryItem("투썸플레이스 디저트 및 커피", 15_000..28_000),
-            CategoryItem("던킨도너츠 도넛 및 커피", 12_000..25_000),
-            CategoryItem("로컬 카페 아메리카노", 8_000..18_000)
-        ),
-        "외식/배달" to listOf(
-            CategoryItem("아웃백 스테이크하우스 가족 외식", 140_000..220_000),
-            CategoryItem("상도생고기(정육식당) 가족 외식", 110_000..190_000),
-            CategoryItem("쿠우쿠우 스시 뷔페 가족 외식", 95_000..150_000),
-            CategoryItem("배달의민족 주말 가족 저녁", 45_000..85_000)
-        ),
-        "교통/차량" to listOf(
-            CategoryItem("GS칼텍스 가솔린 주유", 85_000..130_000),
-            CategoryItem("SK에너지 가솔린 주유", 80_000..125_000),
-            CategoryItem("현대오일뱅크 셀프 주유", 75_000..120_000)
-        ),
-        "생활/마트" to listOf(
-            CategoryItem("다이소 생활잡화 구매", 15_000..35_000),
-            CategoryItem("쿠팡 생활용품 로켓배송", 25_000..65_000),
-            CategoryItem("대형마트 생활용품 구매", 30_000..70_000)
-        ),
-        "자녀교육/교재" to listOf(
-            CategoryItem("교보문고 수능 기출 교재", 45_000..110_000),
-            CategoryItem("메가스터디 수능 인강 결제", 180_000..320_000),
-            CategoryItem("수학 문제집/모의고사 구매", 25_000..55_000)
-        ),
-        "쇼핑/의류" to listOf(
-            CategoryItem("현대백화점 계절의류 구입", 150_000..350_000),
-            CategoryItem("온라인 쇼핑몰 의류 구매", 80_000..200_000),
-            CategoryItem("프리미엄 아울렛 의류 구매", 120_000..280_000)
-        ),
-        "자녀/용돈" to listOf(
-            CategoryItem("자녀 월간 용돈 지급", 100_000..150_000)
-        ),
-        "의료/건강" to listOf(
-            CategoryItem("서울아산병원 내과 진료/검사", 35_000..95_000),
-            CategoryItem("온누리약국 의약품/영양제 구매", 40_000..85_000)
-        ),
-        "경조사/기타" to listOf(
-            CategoryItem("직장 동료 경조사 부조금", 100_000..200_000),
-            CategoryItem("동창회 모임 회비", 50_000..100_000)
-        )
+        "식비/장보기" to listOf(CategoryItem("이마트 트레이더스 장보기", 120_000..240_000), CategoryItem("코스트코 장보기", 180_000..320_000)),
+        "카페/간식" to listOf(CategoryItem("스타벅스 커피", 12_000..25_000), CategoryItem("투썸플레이스 디저트", 15_000..28_000)),
+        "외식/배달" to listOf(CategoryItem("아웃백 가족 외식", 140_000..220_000), CategoryItem("상도생고기 외식", 110_000..190_000)),
+        "교통/차량" to listOf(CategoryItem("가솔린 주유", 85_000..130_000)),
+        "생활/마트" to listOf(CategoryItem("다이소 잡화", 15_000..35_000)),
+        "자녀교육/교재" to listOf(CategoryItem("수능 교재 구매", 45_000..110_000)),
+        "쇼핑/의류" to listOf(CategoryItem("백화점 의류 구입", 150_000..350_000)),
+        "자녀/용돈" to listOf(CategoryItem("자녀 용돈 지급", 100_000..150_000)),
+        "의료/건강" to listOf(CategoryItem("내과 진료", 35_000..95_000)),
+        "경조사/기타" to listOf(CategoryItem("경조사 부조금", 100_000..200_000))
     )
 
-    // -------------------------------------------------------------
-    // 2. 카테고리별 일상 지출 생성용 풀 (가중치 리스트)
-    // -------------------------------------------------------------
     private val weightedDailyCategories = listOf(
-        "식비/장보기", "식비/장보기", "식비/장보기", "식비/장보기", "식비/장보기", "식비/장보기", "식비/장보기",
-        "카페/간식", "카페/간식", "카페/간식", "카페/간식", "카페/간식",
-        "외식/배달", "외식/배달", "외식/배달", "외식/배달",
-        "교통/차량", "교통/차량", "교통/차량", "교통/차량",
-        "생활/마트", "생활/마트", "생활/마트",
-        "자녀교육/교재", "자녀교육/교재",
-        "쇼핑/의류", "쇼핑/의류",
-        "자녀/용돈",
-        "의료/건강",
-        "경조사/기타"
+        "식비/장보기", "식비/장보기", "카페/간식", "외식/배달", "교통/차량", "생활/마트", "자녀교육/교재", "쇼핑/의류", "자녀/용돈", "의료/건강", "경조사/기타"
     )
 
-    // -------------------------------------------------------------
-    // 3. 본격 데이터 생성 (10년 = 약 3,652일간 하루에 정확히 1건씩 생성)
-    // -------------------------------------------------------------
     suspend fun generateFakeData(dao: ExpenseDao) {
         dao.deleteAllExpenses()
-
         val dateFormat = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
-
-        val calendar = Calendar.getInstance().apply {
-            add(Calendar.YEAR, -10)
-        }
+        val calendar = Calendar.getInstance().apply { add(Calendar.YEAR, -10) }
         val endCalendar = Calendar.getInstance()
 
         val totalDays = 3652
         var currentDayIndex = 0
+        val expenseList = mutableListOf<ExpenseEntity>()
 
         while (!calendar.after(endCalendar)) {
             val progress = (currentDayIndex.toDouble() / totalDays.toDouble()).coerceIn(0.0, 1.0)
-
-            // 10년간 약 50%의 누적 물가 상승률 곡선 반영 (0.67 -> 1.0)
-            val inflationRate = 0.67 + (0.33 * progress)
-
+            val inflationRate = 0.6 + (0.4 * progress)
             val dayOfMonth = calendar.get(Calendar.DAY_OF_MONTH)
-            val month = calendar.get(Calendar.MONTH) // 0 = Jan, 1 = Feb, ..., 11 = Dec
+            val month = calendar.get(Calendar.MONTH)
             val year = calendar.get(Calendar.YEAR)
+            val dateStr = dateFormat.format(calendar.time)
 
             val entity = when {
-                // ---------------------------------------------------------
-                // A. 10개년 대형 이상치 지출 (Outliers)
-                // ---------------------------------------------------------
-                // 1) 2018년 여름휴가 (8월 2일): 가족 동남아 여행 (320만 원)
-                year == 2018 && month == Calendar.AUGUST && dayOfMonth == 2 -> {
-                    ExpenseEntity(
-                        id = null,
-                        title = "코타키나발루 4인 가족 여름휴가 여행경비",
-                        category = "여행/여가",
-                        amount = 3_200_000.0,
-                        date = dateFormat.format(calendar.time),
-                        type = "Expense"
-                    )
-                }
+                // A. 대형 이상치
+                year == 2018 && month == Calendar.AUGUST && dayOfMonth == 2 -> 
+                    ExpenseEntity(null, "코타키나발루 가족 휴가", 3_200_000.0 * inflationRate, dateStr, "Expense", "여행/여가")
+                year == 2020 && month == Calendar.OCTOBER && dayOfMonth == 14 -> 
+                    ExpenseEntity(null, "아파트 인테리어 공사", 5_500_000.0 * inflationRate, dateStr, "Expense", "주거/보수")
+                year == 2022 && month == Calendar.AUGUST && dayOfMonth == 4 -> 
+                    ExpenseEntity(null, "서유럽 해외여행 경비", 6_800_000.0 * inflationRate, dateStr, "Expense", "여행/여가")
+                year == 2024 && month == Calendar.MARCH && dayOfMonth == 14 -> 
+                    ExpenseEntity(null, "패밀리카 신차 교체", 7_200_000.0 * inflationRate, dateStr, "Expense", "차량/구입")
+                year == 2025 && month == Calendar.JULY && dayOfMonth == 19 -> 
+                    ExpenseEntity(null, "자녀 대입 컨설팅비", 2_600_000.0 * inflationRate, dateStr, "Expense", "자녀교육/입시")
+                month == Calendar.FEBRUARY && dayOfMonth == 7 -> 
+                    ExpenseEntity(null, "설 명절 부모님 용돈/선물", ((800_000..1_200_000).random() * inflationRate), dateStr, "Expense", "경조사/명절")
+                month == Calendar.SEPTEMBER && dayOfMonth == 11 -> 
+                    ExpenseEntity(null, "추석 명절 귀성 경비", ((700_000..1_100_000).random() * inflationRate), dateStr, "Expense", "경조사/명절")
 
-                // 2) 2020년 가을 (10월 14일): 아파트 거실/주방 부분 인테리어 (550만 원)
-                year == 2020 && month == Calendar.OCTOBER && dayOfMonth == 14 -> {
-                    ExpenseEntity(
-                        id = null,
-                        title = "아파트 거실 및 주방 친환경 인테리어 공사",
-                        category = "주거/보수",
-                        amount = 5_500_000.0,
-                        date = dateFormat.format(calendar.time),
-                        type = "Expense"
-                    )
-                }
+                // B. 수입
+                dayOfMonth == 25 -> 
+                    ExpenseEntity(null, "월급 (급여 이체)", (5_200_000.0 + (4_200_000.0 * progress)), dateStr, "Income", "급여/수입")
+                (month == Calendar.FEBRUARY && dayOfMonth == 9) || (month == Calendar.SEPTEMBER && dayOfMonth == 13) || (month == Calendar.DECEMBER && dayOfMonth == 23) -> 
+                    ExpenseEntity(null, "상여금 및 보너스", ((150_000..950_000).random() * inflationRate), dateStr, "Income", "상여/보너스")
 
-                // 3) 2022년 여름휴가 (8월 4일): 서유럽 4인 가족 해외여행 (680만 원)
-                year == 2022 && month == Calendar.AUGUST && dayOfMonth == 4 -> {
-                    ExpenseEntity(
-                        id = null,
-                        title = "서유럽 3개국 4인 가족 해외여행 경비",
-                        category = "여행/여가",
-                        amount = 6_800_000.0,
-                        date = dateFormat.format(calendar.time),
-                        type = "Expense"
-                    )
-                }
+                // C. 고정 지출
+                dayOfMonth == 5 -> ExpenseEntity(null, "첫째 자녀 학원비", (500_000..850_000).random() * inflationRate, dateStr, "Expense", "자녀교육/학원")
+                dayOfMonth == 10 -> ExpenseEntity(null, "아파트 관리비/공과금", 380_000.0 * inflationRate, dateStr, "Expense", "주거/공과금")
+                dayOfMonth == 15 -> ExpenseEntity(null, "가족 결합 통신비", (140_000..210_000).random() * inflationRate, dateStr, "Expense", "통신/인터넷")
+                dayOfMonth == 18 -> ExpenseEntity(null, "둘째 자녀 과외비", (350_000..620_000).random() * inflationRate, dateStr, "Expense", "자녀교육/과외")
+                dayOfMonth == 20 -> ExpenseEntity(null, "가족 통합보장보험료", 260_000.0 * inflationRate, dateStr, "Expense", "보험/금융")
 
-                // 4) 2024년 봄 (3월 14일): 패밀리카 신차 교체 계약금 (720만 원)
-                year == 2024 && month == Calendar.MARCH && dayOfMonth == 14 -> {
-                    ExpenseEntity(
-                        id = null,
-                        title = "패밀리카 신차 교체 계약금 및 취등록세",
-                        category = "차량/구입",
-                        amount = 7_200_000.0,
-                        date = dateFormat.format(calendar.time),
-                        type = "Expense"
-                    )
-                }
-
-                // 5) 2025년 여름 (7월 19일): 첫째 자녀 대입 수시 입시 컨설팅비 (260만 원)
-                year == 2025 && month == Calendar.JULY && dayOfMonth == 19 -> {
-                    ExpenseEntity(
-                        id = null,
-                        title = "대치동 자녀 대입 수시 입시 컨설팅비",
-                        category = "자녀교육/입시",
-                        amount = 2_600_000.0,
-                        date = dateFormat.format(calendar.time),
-                        type = "Expense"
-                    )
-                }
-
-                // 6) 매년 설 명절 부모님 용돈 및 선물 (2월 7일): 80만~120만 원
-                month == Calendar.FEBRUARY && dayOfMonth == 7 -> {
-                    val giftAmount = (800_000..1_200_000).random() * inflationRate
-                    ExpenseEntity(
-                        id = null,
-                        title = "설 명절 양가 부모님 용돈 및 한우세트",
-                        category = "경조사/명절",
-                        amount = (giftAmount / 10_000).toLong() * 10_000.0,
-                        date = dateFormat.format(calendar.time),
-                        type = "Expense"
-                    )
-                }
-
-                // 7) 매년 추석 명절 귀성 경비 및 선물 (9월 11일): 70만~110만 원
-                month == Calendar.SEPTEMBER && dayOfMonth == 11 -> {
-                    val giftAmount = (700_000..1_100_000).random() * inflationRate
-                    ExpenseEntity(
-                        id = null,
-                        title = "추석 명절 귀성 경비 및 명절 선물",
-                        category = "경조사/명절",
-                        amount = (giftAmount / 10_000).toLong() * 10_000.0,
-                        date = dateFormat.format(calendar.time),
-                        type = "Expense"
-                    )
-                }
-
-                // ---------------------------------------------------------
-                // B. 수입 (매월 25일 월급 - 10년 승진 곡선: 520만 -> 940만 원, 1년 3회 보너스)
-                // ---------------------------------------------------------
-                dayOfMonth == 25 -> {
-                    val baseSalary = 5_200_000.0 + (4_200_000.0 * progress)
-                    val variation = (-25_000..25_000).random()
-                    ExpenseEntity(
-                        id = null,
-                        title = "월급 (급여 이체)",
-                        category = "급여/수입",
-                        amount = ((baseSalary + variation) / 10_000).toLong() * 10_000.0,
-                        date = dateFormat.format(calendar.time),
-                        type = "Income"
-                    )
-                }
-
-                // 1년에 3회 보너스 (설날: 2월 9일, 추석: 9월 13일, 연말 성과급: 12월 23일) - 10만~99만 원 사이
-                (month == Calendar.FEBRUARY && dayOfMonth == 9) ||
-                (month == Calendar.SEPTEMBER && dayOfMonth == 13) ||
-                (month == Calendar.DECEMBER && dayOfMonth == 23) -> {
-                    val bonusAmount = (150_000..950_000).random().toDouble()
-                    ExpenseEntity(
-                        id = null,
-                        title = "명절 상여금 및 성과 보너스",
-                        category = "상여/보너스",
-                        amount = (bonusAmount / 10_000).toLong() * 10_000.0,
-                        date = dateFormat.format(calendar.time),
-                        type = "Income"
-                    )
-                }
-
-                // ---------------------------------------------------------
-                // C. 고정 지출 (매월 특정일에 딱 1회만 결제)
-                // ---------------------------------------------------------
-                // 매월 5일: 첫째 자녀 학원/교육비
-                dayOfMonth == 5 -> {
-                    val academyFee = (500_000..850_000).random() * inflationRate
-                    ExpenseEntity(
-                        id = null,
-                        title = "첫째 자녀 수학/영어 종합학원비",
-                        category = "자녀교육/학원",
-                        amount = (academyFee / 1000).toLong() * 1000.0,
-                        date = dateFormat.format(calendar.time),
-                        type = "Expense"
-                    )
-                }
-
-                // 매월 10일: 아파트 관리비 및 공과금
-                dayOfMonth == 10 -> {
-                    val rent = 380_000.0 * inflationRate
-                    ExpenseEntity(
-                        id = null,
-                        title = "아파트 관리비 및 전기/수도 공과금",
-                        category = "주거/공과금",
-                        amount = (rent / 1000).toLong() * 1000.0,
-                        date = dateFormat.format(calendar.time),
-                        type = "Expense"
-                    )
-                }
-
-                // 매월 15일: 4인 가족 통신비 (월 1회 고정)
-                dayOfMonth == 15 -> {
-                    val phoneBill = (140_000..210_000).random() * inflationRate
-                    ExpenseEntity(
-                        id = null,
-                        title = "SKT 4인 가족 결합 통신비+인터넷",
-                        category = "통신/인터넷",
-                        amount = (phoneBill / 1000).toLong() * 1000.0,
-                        date = dateFormat.format(calendar.time),
-                        type = "Expense"
-                    )
-                }
-
-                // 매월 18일: 둘째 자녀 과외/학원비
-                dayOfMonth == 18 -> {
-                    val tutoring = (350_000..620_000).random() * inflationRate
-                    ExpenseEntity(
-                        id = null,
-                        title = "둘째 자녀 영어/예체능 과외비",
-                        category = "자녀교육/과외",
-                        amount = (tutoring / 1000).toLong() * 1000.0,
-                        date = dateFormat.format(calendar.time),
-                        type = "Expense"
-                    )
-                }
-
-                // 매월 20일: 가족 통합보험료
-                dayOfMonth == 20 -> {
-                    val insurance = 260_000.0 * inflationRate
-                    ExpenseEntity(
-                        id = null,
-                        title = "삼성화재 4인 가족 통합보장보험",
-                        category = "보험/금융",
-                        amount = (insurance / 1000).toLong() * 1000.0,
-                        date = dateFormat.format(calendar.time),
-                        type = "Expense"
-                    )
-                }
-
-                // ---------------------------------------------------------
-                // D. 그 외 일상 변동 지출 (카테고리 할당량 기반 무작위 1건)
-                // ---------------------------------------------------------
+                // D. 일상 지출
                 else -> {
-                    val category = weightedDailyCategories.random()
-                    val items = categoryItems[category] ?: listOf(CategoryItem("생활용품 구매", 20_000..50_000))
-                    val selectedItem = items.random()
-                    val rawAmount = selectedItem.range.random() * inflationRate
-                    val finalAmount = if (category == "자녀/용돈") {
-                        (rawAmount / 10_000).toLong() * 10_000.0
-                    } else {
-                        (rawAmount / 100).toLong() * 100.0
-                    }
-
-                    ExpenseEntity(
-                        id = null,
-                        title = selectedItem.title,
-                        category = category,
-                        amount = finalAmount,
-                        date = dateFormat.format(calendar.time),
-                        type = "Expense"
-                    )
+                    val cat = weightedDailyCategories.random()
+                    val item = (categoryItems[cat] ?: listOf(CategoryItem("생활용품 구매", 20_000..50_000))).random()
+                    ExpenseEntity(null, item.title, item.range.random() * inflationRate, dateStr, "Expense", cat)
                 }
             }
 
-            dao.insertExpense(entity)
+            expenseList.add(entity)
+
+            // 100건씩 배치 삽입 (성능과 UI 업데이트 체감 속도 향상)
+            if (expenseList.size >= 30) {
+                dao.insertAll(expenseList)
+                expenseList.clear()
+            }
+
             calendar.add(Calendar.DAY_OF_YEAR, 1)
             currentDayIndex++
+        }
+        if (expenseList.isNotEmpty()) {
+            dao.insertAll(expenseList)
         }
     }
 }
