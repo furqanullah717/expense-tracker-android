@@ -48,8 +48,8 @@ fun TransactionListScreen(navController: NavController, viewModel: HomeViewModel
     var menuExpanded by remember { mutableStateOf(false) }
 
     val filteredTransactions = when (filterType) {
-        "Expense" -> state.value.filter { it.type == "Expense" }
-        "Income" -> state.value.filter { it.type == "Income" }
+        "지출" -> state.value.filter { it.type == "Expense" }
+        "수입" -> state.value.filter { it.type == "Income" }
         else -> state.value
     }
 
@@ -77,7 +77,7 @@ fun TransactionListScreen(navController: NavController, viewModel: HomeViewModel
 
                 // Title
                 ExpenseTextView(
-                    text = "Transactions",
+                    text = "거래 내역",
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier
@@ -116,7 +116,7 @@ fun TransactionListScreen(navController: NavController, viewModel: HomeViewModel
                         Column {
                             // Type Filter Dropdown
                             ExpenseDropDown(
-                                listOfItems = listOf("All", "Expense", "Income"),
+                                listOfItems = listOf("전체", "지출", "수입"),
                                 onItemSelected = { selected ->
                                     filterType = selected
                                     menuExpanded = false // Close menu after selection
@@ -127,7 +127,7 @@ fun TransactionListScreen(navController: NavController, viewModel: HomeViewModel
 
                             // Date Range Filter Dropdown
                             ExpenseDropDown(
-                                listOfItems = listOf( "Yesterday", "Today", "Last 30 Days", "Last 90 Days", "Last Year"),
+                                listOfItems = listOf( "어제", "오늘", "최근 30일", "최근 90일", "최근 1년"),
                                 onItemSelected = { selected ->
                                     dateRange = selected
                                     menuExpanded = false // Close menu after selection
@@ -140,11 +140,15 @@ fun TransactionListScreen(navController: NavController, viewModel: HomeViewModel
                     val icon = Utils.getItemIcon(item)
                     TransactionItem(
                         title = item.title,
-                        amount = item.amount.toString(),
+                        amount = Utils.formatCurrency(item.amount),
                         icon = icon!!,
                         date = item.date,
                         color = if (item.type == "Income") Color.Green else Color.Red,
-                        Modifier.animateItemPlacement(tween(100))
+                        Modifier
+                            .animateItemPlacement(tween(100))
+                            .clickable {
+                                navController.navigate("/transaction_detail/${item.id}")
+                            }
                     )
                 }
             }

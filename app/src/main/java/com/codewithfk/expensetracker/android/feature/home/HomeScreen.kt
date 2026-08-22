@@ -20,10 +20,13 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SmallFloatingActionButton
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -85,15 +88,17 @@ fun HomeScreen(navController: NavController, viewModel: HomeViewModel = hiltView
     Surface(modifier = Modifier.fillMaxSize()) {
         ConstraintLayout(modifier = Modifier.fillMaxSize()) {
             val (nameRow, list, card, topBar, add) = createRefs()
-            Image(painter = painterResource(id = R.drawable.ic_topbar), contentDescription = null,
-                modifier = Modifier.constrainAs(topBar) {
+            Box(modifier = Modifier
+                .fillMaxWidth()
+                .height(210.dp)
+                .constrainAs(topBar) {
                     top.linkTo(parent.top)
                     start.linkTo(parent.start)
                     end.linkTo(parent.end)
                 })
             Box(modifier = Modifier
                 .fillMaxWidth()
-                .padding(top = 64.dp, start = 16.dp, end = 16.dp)
+                .padding(16.dp)
                 .constrainAs(nameRow) {
                     top.linkTo(parent.top)
                     start.linkTo(parent.start)
@@ -101,26 +106,26 @@ fun HomeScreen(navController: NavController, viewModel: HomeViewModel = hiltView
                 }) {
                 Column(modifier = Modifier.align(Alignment.CenterStart)) {
                     ExpenseTextView(
-                        text = "Good Afternoon",
+                        text = "안녕하세요",
                         style = Typography.bodyMedium,
-                        color = Color.White
                     )
                     ExpenseTextView(
-                        text = "CodeWithFK",
+                        text = "사용자님",
                         style = Typography.titleLarge,
-                        color = Color.White
                     )
                 }
-                Image(
+                Icon(
                     painter = painterResource(id = R.drawable.ic_notification),
                     contentDescription = null,
-                    modifier = Modifier.align(Alignment.CenterEnd)
+                    modifier = Modifier.align(Alignment.CenterEnd),
+                    tint = MaterialTheme.colorScheme.onSurface
                 )
             }
 
             val state = viewModel.expenses.collectAsState(initial = emptyList())
-            val expense = viewModel.getTotalExpense(state.value)
-            val income = viewModel.getTotalIncome(state.value)
+            val lastMonthIncome = viewModel.getLastMonthIncome(state.value)
+            val thisMonthIncome = viewModel.getThisMonthIncome(state.value)
+            val thisMonthExpense = viewModel.getThisMonthExpense(state.value)
             val balance = viewModel.getBalance(state.value)
             CardItem(
                 modifier = Modifier.constrainAs(card) {
@@ -128,7 +133,7 @@ fun HomeScreen(navController: NavController, viewModel: HomeViewModel = hiltView
                     start.linkTo(parent.start)
                     end.linkTo(parent.end)
                 },
-                balance = balance, income = income, expense = expense
+                balance = balance, lastMonthIncome = lastMonthIncome, income = thisMonthIncome, expense = thisMonthExpense
             )
             TransactionList(
                 modifier = Modifier
@@ -139,8 +144,13 @@ fun HomeScreen(navController: NavController, viewModel: HomeViewModel = hiltView
                         end.linkTo(parent.end)
                         bottom.linkTo(parent.bottom)
                         height = Dimension.fillToConstraints
-                    }, list = state.value, onSeeAllClicked = {
+                    },
+                list = state.value.reversed(),
+                onSeeAllClicked = {
                     viewModel.onEvent(HomeUiEvent.OnSeeAllClicked)
+                },
+                onTransactionClicked = {
+                    navController.navigate("/transaction_detail/${it.id}")
                 }
             )
 
@@ -156,6 +166,8 @@ fun HomeScreen(navController: NavController, viewModel: HomeViewModel = hiltView
                     viewModel.onEvent(HomeUiEvent.OnAddExpenseClicked)
                 }, {
                     viewModel.onEvent(HomeUiEvent.OnAddIncomeClicked)
+                }, {
+                    viewModel.onEvent(HomeUiEvent.OnSeedDataClicked)
                 })
             }
         }
@@ -166,7 +178,8 @@ fun HomeScreen(navController: NavController, viewModel: HomeViewModel = hiltView
 fun MultiFloatingActionButton(
     modifier: Modifier,
     onAddExpenseClicked: () -> Unit,
-    onAddIncomeClicked: () -> Unit
+    onAddIncomeClicked: () -> Unit,
+    onSeedDataClicked: () -> Unit
 ) {
     var expanded by remember { mutableStateOf(false) }
 
@@ -183,13 +196,30 @@ fun MultiFloatingActionButton(
                             .size(48.dp)
                             .background(color = Zinc, shape = RoundedCornerShape(12.dp))
                             .clickable {
+                                onSeedDataClicked.invoke()
+                                expanded = false
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            painter = painterResource(R.drawable.ic_notification), // Using notification icon as a placeholder for seed
+                            contentDescription = "데이터 생성",
+                            tint = Color.White
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Box(
+                        modifier = Modifier
+                            .size(48.dp)
+                            .background(color = Zinc, shape = RoundedCornerShape(12.dp))
+                            .clickable {
                                 onAddIncomeClicked.invoke()
                             },
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             painter = painterResource(R.drawable.ic_income),
-                            contentDescription = "Add Income",
+                            contentDescription = "수입 추가",
                             tint = Color.White
                         )
                     }
@@ -205,7 +235,7 @@ fun MultiFloatingActionButton(
                     ) {
                         Icon(
                             painter = painterResource(R.drawable.ic_expense),
-                            contentDescription = "Add Expense",
+                            contentDescription = "지출 추가",
                             tint = Color.White
                         )
                     }
@@ -236,11 +266,10 @@ fun MultiFloatingActionButton(
 @Composable
 fun CardItem(
     modifier: Modifier,
-    balance: String, income: String, expense: String
+    balance: String, lastMonthIncome: String, income: String, expense: String
 ) {
     Column(
         modifier = modifier
-            .padding(16.dp)
             .fillMaxWidth()
             .height(200.dp)
             .clip(RoundedCornerShape(16.dp))
@@ -254,7 +283,7 @@ fun CardItem(
         ) {
             Column {
                 ExpenseTextView(
-                    text = "Total Balance",
+                    text = "총 잔액",
                     style = Typography.titleMedium,
                     color = Color.White
                 )
@@ -270,23 +299,30 @@ fun CardItem(
             )
         }
 
-        Box(
+        Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .weight(1f)
+                .weight(1f),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
         ) {
+            Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                CardRowItem(
+                    modifier = Modifier,
+                    title = "지난달 수입",
+                    amount = lastMonthIncome,
+                    imaget = R.drawable.ic_income
+                )
+                CardRowItem(
+                    modifier = Modifier,
+                    title = "이번달 수입",
+                    amount = income,
+                    imaget = R.drawable.ic_income
+                )
+            }
             CardRowItem(
-                modifier = Modifier
-                    .align(Alignment.CenterStart),
-                title = "Income",
-                amount = income,
-                imaget = R.drawable.ic_income
-            )
-            Spacer(modifier = Modifier.size(8.dp))
-            CardRowItem(
-                modifier = Modifier
-                    .align(Alignment.CenterEnd),
-                title = "Expense",
+                modifier = Modifier,
+                title = "이번달 지출",
                 amount = expense,
                 imaget = R.drawable.ic_expense
             )
@@ -300,8 +336,9 @@ fun CardItem(
 fun TransactionList(
     modifier: Modifier,
     list: List<ExpenseEntity>,
-    title: String = "Recent Transactions",
-    onSeeAllClicked: () -> Unit
+    title: String = "최근 거래 내역",
+    onSeeAllClicked: () -> Unit,
+    onTransactionClicked: (ExpenseEntity) -> Unit
 ) {
     LazyColumn(modifier = modifier.padding(horizontal = 16.dp)) {
         item {
@@ -311,9 +348,9 @@ fun TransactionList(
                         text = title,
                         style = Typography.titleLarge,
                     )
-                    if (title == "Recent Transactions") {
+                    if (title == "최근 거래 내역") {
                         ExpenseTextView(
-                            text = "See all",
+                            text = "전체보기",
                             style = Typography.bodyMedium,
                             modifier = Modifier
                                 .align(Alignment.CenterEnd)
@@ -337,7 +374,7 @@ fun TransactionList(
                 icon = icon,
                 date = Utils.formatStringDateToMonthDayYear(item.date),
                 color = if (item.type == "Income") Green else Red,
-                Modifier
+                Modifier.clickable { onTransactionClicked(item) }
             )
         }
     }
