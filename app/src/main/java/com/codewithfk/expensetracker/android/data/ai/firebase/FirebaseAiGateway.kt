@@ -16,9 +16,16 @@ import javax.inject.Singleton
 class FirebaseAiGateway @Inject constructor() : AiGateway {
 
     private val TAG = "FirebaseAiGateway"
+    companion object {
+        // 사용 가능한 모델 2026.08.23 기준
+        // pro > flash > lite로 갈수록 저렴한 토큰, 빠른 속도, 낮은 정확도
+        // "gemini-2.5-pro", "gemini-2.5-flash", "gemini-2.5-flash-lite"
+        val modelName: String = "gemini-2.5-flash-lite"
+    }
 
     private val model = Firebase.vertexAI.generativeModel(
-        modelName = "gemini-2.5-flash",
+
+        modelName = modelName,
         generationConfig = generationConfig {
             responseMimeType = "application/json"
         }
@@ -113,7 +120,7 @@ class FirebaseAiGateway @Inject constructor() : AiGateway {
                     promptTokens = promptTokens,
                     candidatesTokens = candidatesTokens,
                     totalTokens = totalTokens,
-                    modelName = "gemini-2.5-flash",
+                    modelName = FirebaseAiGateway.modelName,
                     provider = "Firebase (SaaS)",
                     rawResponseJson = responseText
                 )

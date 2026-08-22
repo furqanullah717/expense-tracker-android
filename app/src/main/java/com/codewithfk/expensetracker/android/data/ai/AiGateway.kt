@@ -1,5 +1,6 @@
 package com.codewithfk.expensetracker.android.data.ai
 
+import com.codewithfk.expensetracker.android.data.ai.firebase.FirebaseAiGateway
 import com.codewithfk.expensetracker.android.data.ai.model.AiAnalysisReport
 import com.codewithfk.expensetracker.android.data.model.ExpenseEntity
 
@@ -10,7 +11,7 @@ data class AiAnalysisResultData(
     val promptTokens: Int? = null,
     val candidatesTokens: Int? = null,
     val totalTokens: Int? = null,
-    val modelName: String = "gemini-2.5-flash",
+    val modelName: String = FirebaseAiGateway.modelName,
     val provider: String = "Firebase (SaaS)",
     val rawResponseJson: String = ""
 )
@@ -20,7 +21,6 @@ data class AiAnalysisResultData(
  * This will be implemented by both Firebase (SaaS) and Supabase (BYOK) providers.
  */
 interface AiGateway {
-    
     /**
      * Parses a natural language input string into a structured ExpenseEntity.
      * Example: "오늘 식비로 15000원 썼어" -> ExpenseEntity(title="식비", amount=15000.0, ...)

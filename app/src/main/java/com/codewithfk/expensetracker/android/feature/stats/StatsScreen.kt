@@ -351,11 +351,25 @@ fun DateRangeSelectionDialog(
                         cal.add(Calendar.YEAR, -1)
                         startDateMillis = cal.timeInMillis
                     }
-                    QuickPresetChip(title = "최근 2년") {
+                    QuickPresetChip(title = "최근 3년") {
                         val cal = Calendar.getInstance()
                         endDateMillis = now
                         cal.timeInMillis = now
-                        cal.add(Calendar.YEAR, -2)
+                        cal.add(Calendar.YEAR, -3)
+                        startDateMillis = cal.timeInMillis
+                    }
+                    QuickPresetChip(title = "최근 5년") {
+                        val cal = Calendar.getInstance()
+                        endDateMillis = now
+                        cal.timeInMillis = now
+                        cal.add(Calendar.YEAR, -5)
+                        startDateMillis = cal.timeInMillis
+                    }
+                    QuickPresetChip(title = "최근 10년") {
+                        val cal = Calendar.getInstance()
+                        endDateMillis = now
+                        cal.timeInMillis = now
+                        cal.add(Calendar.YEAR, -10)
                         startDateMillis = cal.timeInMillis
                     }
                 }

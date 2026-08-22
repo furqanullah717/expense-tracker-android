@@ -7,18 +7,18 @@ import java.util.Calendar
 import java.util.Locale
 
 /**
- * 페르소나: 아이 둘을 키우는 50대 초반 가장 (시드머니 2억 원 보유)
- * - title(거래명/상호명)과 category(분류)를 명확히 분리
- * - 2년 전 월급: 약 780만 원 -> 현재 월급: 약 940만 원 (수입 변동성 작음, 매월 25일)
+ * 페르소나: 아이 둘을 키우는 50대 초반 가장 (시드머니 1억 원 보유)
+ * - 10개년 데이터 (3,652일): 10년 전(과장/차장) ~ 현재(팀장/부장)
+ * - 10년 전 월급: 약 520만 원 -> 현재 월급: 약 940만 원 (10개년 승진/호봉 곡선 반영, 매월 25일)
  * - 1년에 3회 보너스 (10만~99만 원 사이)
  * - 고정비 (특정일에 월 1회만 결제하여 중복/비정상 누적 방지):
- *     5일: 대치동 학원비 (첫째)
- *    10일: 아파트 관리비/공과금
- *    15일: SKT 4인 가족 결합 통신비 (월 1회 고정)
- *    18일: 과외/예체능 학원비 (둘째)
+ *     5일: 첫째 자녀 교육/학원비 (연차별 성장 반영)
+ *    10일: 아파트 관리비/공과금 (물가 상승 반영)
+ *    15일: 가족 결합 통신비 (월 1회 고정)
+ *    18일: 둘째 자녀 교육/과외비 (연차별 성장 반영)
  *    20일: 가족 통합보장보험료
- * - 의도적인 대형 지출(튀는 값/이상치): 가족 해외여행(450만), 입시 컨설팅(260만), 차량 정비(185만), 차량 교체 계약금(720만), 명절 부모님 용돈(120만)
- * - 카테고리별 할당량 기반으로 하루 1건씩 30일 데이터 생성 (1일 1건 엄격 준수)
+ * - 10개년 대형 이상치(Outliers): 유럽 여행, 신차 교체, 인테리어, 입시 컨설팅, 명절 부모님 용돈 등
+ * - 1일 1건 제약 엄격 준수 (비교 실험용)
  */
 object FakeDataGenerator {
 
@@ -96,7 +96,7 @@ object FakeDataGenerator {
     )
 
     // -------------------------------------------------------------
-    // 3. 본격 데이터 생성 (2년 = 730일간 하루에 정확히 1건씩 생성)
+    // 3. 본격 데이터 생성 (10년 = 약 3,652일간 하루에 정확히 1건씩 생성)
     // -------------------------------------------------------------
     suspend fun generateFakeData(dao: ExpenseDao) {
         dao.deleteAllExpenses()
@@ -104,64 +104,65 @@ object FakeDataGenerator {
         val dateFormat = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
 
         val calendar = Calendar.getInstance().apply {
-            add(Calendar.YEAR, -2)
+            add(Calendar.YEAR, -10)
         }
         val endCalendar = Calendar.getInstance()
 
-        val totalDays = 730
+        val totalDays = 3652
         var currentDayIndex = 0
 
         while (!calendar.after(endCalendar)) {
             val progress = (currentDayIndex.toDouble() / totalDays.toDouble()).coerceIn(0.0, 1.0)
 
-            // 2년간 약 20%의 물가 상승률 곡선 반영 (1.0 -> 1.20)
-            val inflationRate = 1.0 + (0.20 * progress)
+            // 10년간 약 50%의 누적 물가 상승률 곡선 반영 (0.67 -> 1.0)
+            val inflationRate = 0.67 + (0.33 * progress)
 
             val dayOfMonth = calendar.get(Calendar.DAY_OF_MONTH)
             val month = calendar.get(Calendar.MONTH) // 0 = Jan, 1 = Feb, ..., 11 = Dec
+            val year = calendar.get(Calendar.YEAR)
 
             val entity = when {
                 // ---------------------------------------------------------
-                // A. 의도적인 대형 튀는 값 (Outliers)
+                // A. 10개년 대형 이상치 지출 (Outliers)
                 // ---------------------------------------------------------
-                // 1년 차 여름휴가 (8월 2일): 가족 해외여행 (450만 원)
-                month == Calendar.AUGUST && dayOfMonth == 2 -> {
+                // 1) 2018년 여름휴가 (8월 2일): 가족 동남아 여행 (320만 원)
+                year == 2018 && month == Calendar.AUGUST && dayOfMonth == 2 -> {
                     ExpenseEntity(
                         id = null,
-                        title = "베트남 다낭 4인 가족 해외여행 경비",
+                        title = "코타키나발루 4인 가족 여름휴가 여행경비",
                         category = "여행/여가",
-                        amount = 4_500_000.0,
+                        amount = 3_200_000.0,
                         date = dateFormat.format(calendar.time),
                         type = "Expense"
                     )
                 }
 
-                // 2년 차 대입 수시 컨설팅 (7월 19일): 입시 컨설팅 (260만 원)
-                month == Calendar.JULY && dayOfMonth == 19 -> {
+                // 2) 2020년 가을 (10월 14일): 아파트 거실/주방 부분 인테리어 (550만 원)
+                year == 2020 && month == Calendar.OCTOBER && dayOfMonth == 14 -> {
                     ExpenseEntity(
                         id = null,
-                        title = "대치동 자녀 대입 수시 입시 컨설팅비",
-                        category = "자녀교육/입시",
-                        amount = 2_600_000.0,
+                        title = "아파트 거실 및 주방 친환경 인테리어 공사",
+                        category = "주거/보수",
+                        amount = 5_500_000.0,
                         date = dateFormat.format(calendar.time),
                         type = "Expense"
                     )
                 }
 
-                // 1년 차 가을 (11월 4일): 차량 대형 정비 (185만 원)
-                month == Calendar.NOVEMBER && dayOfMonth == 4 -> {
+                // 3) 2022년 여름휴가 (8월 4일): 서유럽 4인 가족 해외여행 (680만 원)
+                year == 2022 && month == Calendar.AUGUST && dayOfMonth == 4 -> {
                     ExpenseEntity(
                         id = null,
-                        title = "패밀리카 타이어 4본 교체 및 미션오일 대형정비",
-                        category = "차량/수리",
-                        amount = 1_850_000.0,
+                        title = "서유럽 3개국 4인 가족 해외여행 경비",
+                        category = "여행/여가",
+                        amount = 6_800_000.0,
                         date = dateFormat.format(calendar.time),
                         type = "Expense"
                     )
                 }
 
-                // 2년 차 봄 (3월 14일): 차량 교체 계약금 (720만 원)
-                month == Calendar.MARCH && dayOfMonth == 14 -> {
+                // 4) 2024년 봄 (3월 14일): 패밀리카 신차 교체 계약금 (720만 원)
+                year == 2024 && month == Calendar.MARCH && dayOfMonth == 14 -> {
                     ExpenseEntity(
                         id = null,
                         title = "패밀리카 신차 교체 계약금 및 취등록세",
@@ -172,37 +173,50 @@ object FakeDataGenerator {
                     )
                 }
 
-                // 설 명절 부모님 용돈 및 선물 (2월 7일): 120만 원
+                // 5) 2025년 여름 (7월 19일): 첫째 자녀 대입 수시 입시 컨설팅비 (260만 원)
+                year == 2025 && month == Calendar.JULY && dayOfMonth == 19 -> {
+                    ExpenseEntity(
+                        id = null,
+                        title = "대치동 자녀 대입 수시 입시 컨설팅비",
+                        category = "자녀교육/입시",
+                        amount = 2_600_000.0,
+                        date = dateFormat.format(calendar.time),
+                        type = "Expense"
+                    )
+                }
+
+                // 6) 매년 설 명절 부모님 용돈 및 선물 (2월 7일): 80만~120만 원
                 month == Calendar.FEBRUARY && dayOfMonth == 7 -> {
+                    val giftAmount = (800_000..1_200_000).random() * inflationRate
                     ExpenseEntity(
                         id = null,
                         title = "설 명절 양가 부모님 용돈 및 한우세트",
                         category = "경조사/명절",
-                        amount = 1_200_000.0,
+                        amount = (giftAmount / 10_000).toLong() * 10_000.0,
                         date = dateFormat.format(calendar.time),
                         type = "Expense"
                     )
                 }
 
-                // 추석 명절 귀성 경비 및 선물 (9월 11일): 110만 원
+                // 7) 매년 추석 명절 귀성 경비 및 선물 (9월 11일): 70만~110만 원
                 month == Calendar.SEPTEMBER && dayOfMonth == 11 -> {
+                    val giftAmount = (700_000..1_100_000).random() * inflationRate
                     ExpenseEntity(
                         id = null,
                         title = "추석 명절 귀성 경비 및 명절 선물",
                         category = "경조사/명절",
-                        amount = 1_100_000.0,
+                        amount = (giftAmount / 10_000).toLong() * 10_000.0,
                         date = dateFormat.format(calendar.time),
                         type = "Expense"
                     )
                 }
 
                 // ---------------------------------------------------------
-                // B. 수입 (매월 25일 월급 - 변동성 작음, 1년 3회 보너스)
+                // B. 수입 (매월 25일 월급 - 10년 승진 곡선: 520만 -> 940만 원, 1년 3회 보너스)
                 // ---------------------------------------------------------
-                // 매월 25일: 월급 (2년 전 780만 -> 현재 940만, 변동폭 ±3만 원 이내)
                 dayOfMonth == 25 -> {
-                    val baseSalary = 7_800_000.0 + (1_600_000.0 * progress)
-                    val variation = (-30_000..30_000).random()
+                    val baseSalary = 5_200_000.0 + (4_200_000.0 * progress)
+                    val variation = (-25_000..25_000).random()
                     ExpenseEntity(
                         id = null,
                         title = "월급 (급여 이체)",
@@ -231,12 +245,12 @@ object FakeDataGenerator {
                 // ---------------------------------------------------------
                 // C. 고정 지출 (매월 특정일에 딱 1회만 결제)
                 // ---------------------------------------------------------
-                // 매월 5일: 첫째 자녀 학원비
+                // 매월 5일: 첫째 자녀 학원/교육비
                 dayOfMonth == 5 -> {
-                    val academyFee = (700_000..850_000).random() * inflationRate
+                    val academyFee = (500_000..850_000).random() * inflationRate
                     ExpenseEntity(
                         id = null,
-                        title = "대치동 수학/영어 종합학원비 (첫째)",
+                        title = "첫째 자녀 수학/영어 종합학원비",
                         category = "자녀교육/학원",
                         amount = (academyFee / 1000).toLong() * 1000.0,
                         date = dateFormat.format(calendar.time),
@@ -246,7 +260,7 @@ object FakeDataGenerator {
 
                 // 매월 10일: 아파트 관리비 및 공과금
                 dayOfMonth == 10 -> {
-                    val rent = 480_000.0 * inflationRate
+                    val rent = 380_000.0 * inflationRate
                     ExpenseEntity(
                         id = null,
                         title = "아파트 관리비 및 전기/수도 공과금",
@@ -259,7 +273,7 @@ object FakeDataGenerator {
 
                 // 매월 15일: 4인 가족 통신비 (월 1회 고정)
                 dayOfMonth == 15 -> {
-                    val phoneBill = (175_000..210_000).random().toDouble()
+                    val phoneBill = (140_000..210_000).random() * inflationRate
                     ExpenseEntity(
                         id = null,
                         title = "SKT 4인 가족 결합 통신비+인터넷",
@@ -270,9 +284,9 @@ object FakeDataGenerator {
                     )
                 }
 
-                // 매월 18일: 둘째 자녀 과외비
+                // 매월 18일: 둘째 자녀 과외/학원비
                 dayOfMonth == 18 -> {
-                    val tutoring = (480_000..620_000).random() * inflationRate
+                    val tutoring = (350_000..620_000).random() * inflationRate
                     ExpenseEntity(
                         id = null,
                         title = "둘째 자녀 영어/예체능 과외비",
@@ -285,11 +299,12 @@ object FakeDataGenerator {
 
                 // 매월 20일: 가족 통합보험료
                 dayOfMonth == 20 -> {
+                    val insurance = 260_000.0 * inflationRate
                     ExpenseEntity(
                         id = null,
                         title = "삼성화재 4인 가족 통합보장보험",
                         category = "보험/금융",
-                        amount = 320_000.0,
+                        amount = (insurance / 1000).toLong() * 1000.0,
                         date = dateFormat.format(calendar.time),
                         type = "Expense"
                     )

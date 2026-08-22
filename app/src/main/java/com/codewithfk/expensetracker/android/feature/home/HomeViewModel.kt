@@ -18,7 +18,7 @@ class HomeViewModel @Inject constructor(val dao: ExpenseDao) : BaseViewModel() {
     val expenses = dao.getAllExpense()
 
     companion object {
-        const val INITIAL_SEED_MONEY = 200_000_000.0 // 초기 시드머니 2억 원
+        const val INITIAL_SEED_MONEY = 100_000_000.0 // 초기 시드머니 1억 원
     }
 
     override fun onEvent(event: UiEvent) {

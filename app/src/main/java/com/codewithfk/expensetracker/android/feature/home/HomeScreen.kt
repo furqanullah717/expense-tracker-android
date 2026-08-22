@@ -363,6 +363,25 @@ fun TransactionList(
     onSeeAllClicked: () -> Unit,
     onTransactionClicked: (ExpenseEntity) -> Unit
 ) {
+    val filteredList = remember(list) {
+        val calendar = java.util.Calendar.getInstance()
+        // 현재 시간의 시/분/초 초기화
+        calendar.set(java.util.Calendar.HOUR_OF_DAY, 0)
+        calendar.set(java.util.Calendar.MINUTE, 0)
+        calendar.set(java.util.Calendar.SECOND, 0)
+        calendar.set(java.util.Calendar.MILLISECOND, 0)
+
+        // 오늘(8월 23일) 기준, 작년 9월 1일부터 시작하기 위해 11개월 전의 1일로 설정
+        calendar.set(java.util.Calendar.DAY_OF_MONTH, 1)
+        calendar.add(java.util.Calendar.MONTH, -11)
+        val startTime = calendar.timeInMillis
+
+        list.filter {
+            val itemTime = Utils.getMillisFromDate(it.date)
+            itemTime >= startTime
+        }
+    }
+
     LazyColumn(modifier = modifier.padding(horizontal = 16.dp)) {
         item {
             Column(modifier = Modifier.fillMaxWidth()) {
@@ -386,7 +405,7 @@ fun TransactionList(
                 Spacer(modifier = Modifier.size(12.dp))
             }
         }
-        items(items = list,
+        items(items = filteredList,
             key = { item -> item.id ?: 0 }) { item ->
             val icon = Utils.getItemIcon(item)
             val amount = if (item.type == "Income") item.amount else item.amount * -1
