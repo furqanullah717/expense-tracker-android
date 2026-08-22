@@ -60,6 +60,8 @@ import com.codewithfk.expensetracker.android.ui.theme.LightGrey
 import com.codewithfk.expensetracker.android.ui.theme.Red
 import com.codewithfk.expensetracker.android.ui.theme.Typography
 import com.codewithfk.expensetracker.android.utils.Utils
+import com.google.firebase.Firebase
+import com.google.firebase.auth.auth
 
 
 @Composable
@@ -96,6 +98,13 @@ fun HomeScreen(navController: NavController, viewModel: HomeViewModel = hiltView
                     start.linkTo(parent.start)
                     end.linkTo(parent.end)
                 })
+            val currentUser = remember { Firebase.auth.currentUser }
+            val userName = remember(currentUser) {
+                currentUser?.displayName?.takeIf { it.isNotBlank() }
+                    ?: currentUser?.email?.substringBefore("@")?.takeIf { it.isNotBlank() }
+                    ?: "사용자"
+            }
+
             Box(modifier = Modifier
                 .fillMaxWidth()
                 .padding(16.dp)
@@ -110,7 +119,7 @@ fun HomeScreen(navController: NavController, viewModel: HomeViewModel = hiltView
                         style = Typography.bodyMedium,
                     )
                     ExpenseTextView(
-                        text = "사용자님",
+                        text = "${userName}님",
                         style = Typography.titleLarge,
                     )
                 }
@@ -126,14 +135,19 @@ fun HomeScreen(navController: NavController, viewModel: HomeViewModel = hiltView
             val lastMonthIncome = viewModel.getLastMonthIncome(state.value)
             val thisMonthIncome = viewModel.getThisMonthIncome(state.value)
             val thisMonthExpense = viewModel.getThisMonthExpense(state.value)
-            val balance = viewModel.getBalance(state.value)
+            val totalBalance = viewModel.getTotalBalance(state.value)
+            val netProfit = viewModel.getNetProfit(state.value)
             CardItem(
                 modifier = Modifier.constrainAs(card) {
                     top.linkTo(nameRow.bottom)
                     start.linkTo(parent.start)
                     end.linkTo(parent.end)
                 },
-                balance = balance, lastMonthIncome = lastMonthIncome, income = thisMonthIncome, expense = thisMonthExpense
+                totalBalance = totalBalance,
+                netProfit = netProfit,
+                lastMonthIncome = lastMonthIncome,
+                income = thisMonthIncome,
+                expense = thisMonthExpense
             )
             TransactionList(
                 modifier = Modifier
@@ -266,68 +280,77 @@ fun MultiFloatingActionButton(
 @Composable
 fun CardItem(
     modifier: Modifier,
-    balance: String, lastMonthIncome: String, income: String, expense: String
+    totalBalance: String,
+    netProfit: String,
+    lastMonthIncome: String,
+    income: String,
+    expense: String
 ) {
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .height(200.dp)
             .clip(RoundedCornerShape(16.dp))
             .background(Zinc)
             .padding(16.dp)
     ) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .weight(1f)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Column {
+            Column(modifier = Modifier.weight(1f)) {
                 ExpenseTextView(
                     text = "총 잔액",
-                    style = Typography.titleMedium,
-                    color = Color.White
+                    style = Typography.titleSmall,
+                    color = Color.White.copy(alpha = 0.85f)
                 )
-                Spacer(modifier = Modifier.size(8.dp))
+                Spacer(modifier = Modifier.size(4.dp))
                 ExpenseTextView(
-                    text = balance, style = Typography.headlineLarge, color = Color.White,
+                    text = totalBalance,
+                    style = Typography.headlineMedium,
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold
                 )
             }
-            Image(
-                painter = painterResource(id = R.drawable.dots_menu),
-                contentDescription = null,
-                modifier = Modifier.align(Alignment.CenterEnd)
-            )
+            Surface(
+                shape = RoundedCornerShape(8.dp),
+                color = Color.White.copy(alpha = 0.2f)
+            ) {
+                ExpenseTextView(
+                    text = "누적 $netProfit",
+                    fontSize = 12.sp,
+                    color = Color.White,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                )
+            }
         }
 
+        Spacer(modifier = Modifier.height(16.dp))
+
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .weight(1f),
+            modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                CardRowItem(
-                    modifier = Modifier,
-                    title = "지난달 수입",
-                    amount = lastMonthIncome,
-                    imaget = R.drawable.ic_income
-                )
-                CardRowItem(
-                    modifier = Modifier,
-                    title = "이번달 수입",
-                    amount = income,
-                    imaget = R.drawable.ic_income
-                )
-            }
+            CardRowItem(
+                modifier = Modifier,
+                title = "이번달 수입",
+                amount = income,
+                imaget = R.drawable.ic_income
+            )
             CardRowItem(
                 modifier = Modifier,
                 title = "이번달 지출",
                 amount = expense,
                 imaget = R.drawable.ic_expense
             )
+            CardRowItem(
+                modifier = Modifier,
+                title = "지난달 수입",
+                amount = lastMonthIncome,
+                imaget = R.drawable.ic_income
+            )
         }
-
     }
 }
 
@@ -342,8 +365,8 @@ fun TransactionList(
 ) {
     LazyColumn(modifier = modifier.padding(horizontal = 16.dp)) {
         item {
-            Column {
-                Box(modifier = modifier.fillMaxWidth()) {
+            Column(modifier = Modifier.fillMaxWidth()) {
+                Box(modifier = Modifier.fillMaxWidth()) {
                     ExpenseTextView(
                         text = title,
                         style = Typography.titleLarge,
@@ -370,11 +393,12 @@ fun TransactionList(
 
             TransactionItem(
                 title = item.title,
+                category = item.category,
                 amount = Utils.formatCurrency(amount),
                 icon = icon,
                 date = Utils.formatStringDateToMonthDayYear(item.date),
                 color = if (item.type == "Income") Green else Red,
-                Modifier.clickable { onTransactionClicked(item) }
+                modifier = Modifier.clickable { onTransactionClicked(item) }
             )
         }
     }
@@ -383,6 +407,7 @@ fun TransactionList(
 @Composable
 fun TransactionItem(
     title: String,
+    category: String = "",
     amount: String,
     icon: Int,
     date: String,
@@ -395,23 +420,41 @@ fun TransactionItem(
             .fillMaxWidth()
             .padding(vertical = 8.dp)
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        Row(
+            modifier = Modifier.padding(end = 100.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
             Image(
                 painter = painterResource(id = icon),
                 contentDescription = null,
-                modifier = Modifier.size(51.dp)
+                modifier = Modifier.size(48.dp)
             )
-            Spacer(modifier = Modifier.size(8.dp))
+            Spacer(modifier = Modifier.size(10.dp))
             Column {
-                ExpenseTextView(text = title, fontSize = 16.sp, fontWeight = FontWeight.Medium)
-                Spacer(modifier = Modifier.size(6.dp))
-                ExpenseTextView(text = date, fontSize = 13.sp, color = LightGrey)
+                ExpenseTextView(text = title, fontSize = 15.sp, fontWeight = FontWeight.Medium)
+                Spacer(modifier = Modifier.size(4.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (category.isNotBlank()) {
+                        ExpenseTextView(
+                            text = category,
+                            fontSize = 12.sp,
+                            color = Zinc,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        ExpenseTextView(
+                            text = " • ",
+                            fontSize = 12.sp,
+                            color = LightGrey
+                        )
+                    }
+                    ExpenseTextView(text = date, fontSize = 12.sp, color = LightGrey)
+                }
             }
         }
         ExpenseTextView(
             text = amount,
-            fontSize = 18.sp,
-            fontWeight = FontWeight.Medium,
+            fontSize = 16.sp,
+            fontWeight = FontWeight.Bold,
             modifier = Modifier.align(Alignment.CenterEnd),
             color = color
         )

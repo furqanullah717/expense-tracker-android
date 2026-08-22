@@ -38,13 +38,14 @@ import com.codewithfk.expensetracker.android.feature.home.TransactionItem
 import com.codewithfk.expensetracker.android.utils.Utils
 import com.codewithfk.expensetracker.android.feature.home.HomeViewModel
 import com.codewithfk.expensetracker.android.widget.ExpenseTextView
+import java.util.Calendar
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun TransactionListScreen(navController: NavController, viewModel: HomeViewModel = hiltViewModel()) {
     val state = viewModel.expenses.collectAsState(initial = emptyList())
-    var filterType by remember { mutableStateOf("All") }
-    var dateRange by remember { mutableStateOf("All Time") }
+    var filterType by remember { mutableStateOf("전체") }
+    var dateRange by remember { mutableStateOf("전체") }
     var menuExpanded by remember { mutableStateOf(false) }
 
     val filteredTransactions = when (filterType) {
@@ -54,8 +55,34 @@ fun TransactionListScreen(navController: NavController, viewModel: HomeViewModel
     }
 
     val filteredByDateRange = filteredTransactions.filter { transaction ->
-        // Apply date range filter logic here
-        true
+        val itemMillis = Utils.getMillisFromDate(transaction.date)
+        val calNow = Calendar.getInstance()
+        val calItem = Calendar.getInstance().apply { timeInMillis = itemMillis }
+
+        when (dateRange) {
+            "오늘" -> {
+                calNow.get(Calendar.YEAR) == calItem.get(Calendar.YEAR) &&
+                calNow.get(Calendar.DAY_OF_YEAR) == calItem.get(Calendar.DAY_OF_YEAR)
+            }
+            "어제" -> {
+                val calYesterday = Calendar.getInstance().apply { add(Calendar.DAY_OF_YEAR, -1) }
+                calYesterday.get(Calendar.YEAR) == calItem.get(Calendar.YEAR) &&
+                calYesterday.get(Calendar.DAY_OF_YEAR) == calItem.get(Calendar.DAY_OF_YEAR)
+            }
+            "최근 30일" -> {
+                val cal30DaysAgo = Calendar.getInstance().apply { add(Calendar.DAY_OF_YEAR, -30) }
+                itemMillis >= cal30DaysAgo.timeInMillis
+            }
+            "최근 90일" -> {
+                val cal90DaysAgo = Calendar.getInstance().apply { add(Calendar.DAY_OF_YEAR, -90) }
+                itemMillis >= cal90DaysAgo.timeInMillis
+            }
+            "최근 1년" -> {
+                val cal1YearAgo = Calendar.getInstance().apply { add(Calendar.YEAR, -1) }
+                itemMillis >= cal1YearAgo.timeInMillis
+            }
+            else -> true // "전체"
+        }
     }
 
     Scaffold(
@@ -127,7 +154,7 @@ fun TransactionListScreen(navController: NavController, viewModel: HomeViewModel
 
                             // Date Range Filter Dropdown
                             ExpenseDropDown(
-                                listOfItems = listOf( "어제", "오늘", "최근 30일", "최근 90일", "최근 1년"),
+                                listOfItems = listOf("전체 기간", "오늘", "어제", "최근 30일", "최근 90일", "최근 1년"),
                                 onItemSelected = { selected ->
                                     dateRange = selected
                                     menuExpanded = false // Close menu after selection
@@ -136,15 +163,16 @@ fun TransactionListScreen(navController: NavController, viewModel: HomeViewModel
                         }
                     }
                 }
-                items(filteredByDateRange) { item ->
+                items(filteredByDateRange.reversed()) { item ->
                     val icon = Utils.getItemIcon(item)
                     TransactionItem(
                         title = item.title,
+                        category = item.category,
                         amount = Utils.formatCurrency(item.amount),
-                        icon = icon!!,
+                        icon = icon,
                         date = item.date,
                         color = if (item.type == "Income") Color.Green else Color.Red,
-                        Modifier
+                        modifier = Modifier
                             .animateItemPlacement(tween(100))
                             .clickable {
                                 navController.navigate("/transaction_detail/${item.id}")

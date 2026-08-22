@@ -16,7 +16,9 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.DropdownMenu
@@ -24,6 +26,8 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
@@ -32,6 +36,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -40,7 +45,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -71,6 +78,21 @@ fun AddExpense(
     viewModel: AddExpenseViewModel = hiltViewModel()
 ) {
     val menuExpanded = remember { mutableStateOf(false) }
+    val errorMessage = viewModel.errorMessage.collectAsState()
+
+    if (errorMessage.value != null) {
+        AlertDialog(
+            onDismissRequest = { viewModel.clearError() },
+            confirmButton = {
+                TextButton(onClick = { viewModel.clearError() }) {
+                    ExpenseTextView(text = "확인")
+                }
+            },
+            title = { ExpenseTextView(text = "오류 발생") },
+            text = { ExpenseTextView(text = errorMessage.value ?: "") }
+        )
+    }
+
     LaunchedEffect(Unit) {
         viewModel.navigationEvent.collect { event ->
             when (event) {
@@ -148,13 +170,18 @@ fun AddExpense(
                 }
 
             }
-            DataForm(modifier = Modifier.constrainAs(card) {
-                top.linkTo(nameRow.bottom)
-                start.linkTo(parent.start)
-                end.linkTo(parent.end)
-            }, onAddExpenseClick = {
-                viewModel.onEvent(AddExpenseUiEvent.OnAddExpenseClicked(it))
-            }, isIncome)
+            DataForm(
+                modifier = Modifier.constrainAs(card) {
+                    top.linkTo(nameRow.bottom)
+                    start.linkTo(parent.start)
+                    end.linkTo(parent.end)
+                },
+                onAddExpenseClick = {
+                    viewModel.onEvent(AddExpenseUiEvent.OnAddExpenseClicked(it))
+                },
+                isIncome = isIncome,
+                viewModel = viewModel
+            )
         }
     }
 }
@@ -163,7 +190,8 @@ fun AddExpense(
 fun DataForm(
     modifier: Modifier,
     onAddExpenseClick: (model: ExpenseEntity) -> Unit,
-    isIncome: Boolean
+    isIncome: Boolean,
+    viewModel: AddExpenseViewModel
 ) {
 
     val name = remember {
@@ -181,6 +209,19 @@ fun DataForm(
     val type = remember {
         mutableStateOf(if (isIncome) "Income" else "Expense")
     }
+
+    val aiInput = remember { mutableStateOf("") }
+    val isAiLoading = viewModel.isAiLoading.collectAsState()
+    val parsedExpense = viewModel.parsedExpense.collectAsState()
+
+    LaunchedEffect(parsedExpense.value) {
+        parsedExpense.value?.let {
+            name.value = it.title
+            amount.value = it.amount.toString()
+            date.longValue = Utils.getMillisFromDate(it.date)
+        }
+    }
+
     Column(
         modifier = modifier
             .padding(16.dp)
@@ -193,6 +234,27 @@ fun DataForm(
             .padding(16.dp)
             .verticalScroll(rememberScrollState())
     ) {
+        TitleComponent(title = "AI로 입력하기 (자연어)")
+        OutlinedTextField(
+            value = aiInput.value,
+            onValueChange = { aiInput.value = it },
+            modifier = Modifier.fillMaxWidth(),
+            placeholder = { ExpenseTextView(text = "예: 오늘 점심 만원 썼어") },
+            trailingIcon = {
+                if (isAiLoading.value) {
+                    CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                } else {
+                    IconButton(onClick = { viewModel.parseExpenseWithAi(aiInput.value) }) {
+                        Icon(
+                            painter = painterResource(id = R.drawable.ic_notification), // placeholder icon
+                            contentDescription = "AI 파싱"
+                        )
+                    }
+                }
+            }
+        )
+        Spacer(modifier = Modifier.size(24.dp))
+        
         TitleComponent(title = "이름/카테고리")
         ExpenseDropDown(
             if (isIncome) listOf(

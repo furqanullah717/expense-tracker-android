@@ -123,8 +123,12 @@ fun TransactionDetailScreen(
                 
                 Spacer(modifier = Modifier.height(32.dp))
                 
-                DetailRow(label = "카테고리", value = item.title)
+                DetailRow(label = "거래명", value = item.title)
+                if (item.category.isNotBlank()) {
+                    DetailRow(label = "카테고리", value = item.category)
+                }
                 DetailRow(label = "날짜", value = Utils.formatStringDateToMonthDayYear(item.date))
+                DetailRow(label = "유형", value = if (item.type == "Income") "수입" else "지출")
                 
                 Spacer(modifier = Modifier.weight(1f))
                 

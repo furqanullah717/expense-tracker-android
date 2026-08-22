@@ -3,6 +3,18 @@ package com.codewithfk.expensetracker.android.data.ai
 import com.codewithfk.expensetracker.android.data.ai.model.AiAnalysisReport
 import com.codewithfk.expensetracker.android.data.model.ExpenseEntity
 
+data class AiAnalysisResultData(
+    val report: AiAnalysisReport,
+    val geminiPrompt: String,
+    val responseTimeMs: Long,
+    val promptTokens: Int? = null,
+    val candidatesTokens: Int? = null,
+    val totalTokens: Int? = null,
+    val modelName: String = "gemini-2.5-flash",
+    val provider: String = "Firebase (SaaS)",
+    val rawResponseJson: String = ""
+)
+
 /**
  * Interface defining the contract for AI-powered features in the Expense Tracker.
  * This will be implemented by both Firebase (SaaS) and Supabase (BYOK) providers.
@@ -19,5 +31,9 @@ interface AiGateway {
      * Analyzes a list of expenses to provide insights and saving tips.
      * This method handles large datasets (e.g., 2 years of history).
      */
-    suspend fun analyzeSpending(history: List<ExpenseEntity>): Result<AiAnalysisReport>
+    suspend fun analyzeSpending(
+        history: List<ExpenseEntity>,
+        startDate: String? = null,
+        endDate: String? = null
+    ): Result<AiAnalysisResultData>
 }
