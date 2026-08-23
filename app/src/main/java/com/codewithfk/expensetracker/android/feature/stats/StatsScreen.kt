@@ -533,18 +533,26 @@ fun AiAnalysisSection(
             }
 
             ExpenseTextView(text = "📊 요약", fontWeight = FontWeight.Bold)
-            ExpenseTextView(text = it.summary, fontSize = 14.sp)
+            ExpenseTextView(text = it.summary ?: "", fontSize = 14.sp)
 
-            Spacer(modifier = Modifier.height(12.dp))
-            ExpenseTextView(text = "💡 주요 인사이트", fontWeight = FontWeight.Bold)
-            it.insights.forEach { insight ->
-                ExpenseTextView(text = "• $insight", fontSize = 14.sp)
+            it.insights?.let { insights ->
+                if (insights.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(12.dp))
+                    ExpenseTextView(text = "💡 주요 인사이트", fontWeight = FontWeight.Bold)
+                    insights.forEach { insight ->
+                        ExpenseTextView(text = "• $insight", fontSize = 14.sp)
+                    }
+                }
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
-            ExpenseTextView(text = "💰 절약 팁", fontWeight = FontWeight.Bold)
-            it.savingTips.forEach { tip ->
-                ExpenseTextView(text = "• $tip", fontSize = 14.sp)
+            it.savingTips?.let { tips ->
+                if (tips.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(12.dp))
+                    ExpenseTextView(text = "💰 절약 팁", fontWeight = FontWeight.Bold)
+                    tips.forEach { tip ->
+                        ExpenseTextView(text = "• $tip", fontSize = 14.sp)
+                    }
+                }
             }
         }
     }

@@ -55,7 +55,7 @@ object FakeDataGenerator {
 
         while (!calendar.after(endCalendar)) {
             val progress = (currentDayIndex.toDouble() / totalDays.toDouble()).coerceIn(0.0, 1.0)
-            val inflationRate = 0.6 + (0.4 * progress)
+            val inflationRate = 0.73 + (0.27  * progress)
             val dayOfMonth = calendar.get(Calendar.DAY_OF_MONTH)
             val month = calendar.get(Calendar.MONTH)
             val year = calendar.get(Calendar.YEAR)
@@ -103,7 +103,7 @@ object FakeDataGenerator {
             expenseList.add(roundedEntity)
 
             // 100건씩 배치 삽입 (성능과 UI 업데이트 체감 속도 향상)
-            if (expenseList.size >= 30) {
+            if (expenseList.size >= 100) {
                 dao.insertAll(expenseList)
                 expenseList.clear()
             }

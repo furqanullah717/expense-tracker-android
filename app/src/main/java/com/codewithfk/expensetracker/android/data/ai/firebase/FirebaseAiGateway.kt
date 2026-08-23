@@ -6,10 +6,14 @@ import androidx.annotation.RequiresApi
 import com.codewithfk.expensetracker.android.data.ai.AiAnalysisResultData
 import com.codewithfk.expensetracker.android.data.ai.AiGateway
 import com.codewithfk.expensetracker.android.data.ai.model.AiAnalysisReport
+import com.codewithfk.expensetracker.android.data.ai.prompt.AiPromptTemplates
 import com.codewithfk.expensetracker.android.data.model.ExpenseEntity
+import com.codewithfk.expensetracker.android.utils.Utils
 import com.google.firebase.Firebase
 import com.google.firebase.vertexai.vertexAI
 import com.google.firebase.vertexai.type.generationConfig
+import kotlinx.serialization.InternalSerializationApi
+import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import java.text.SimpleDateFormat
 import java.util.Calendar
@@ -26,6 +30,7 @@ class FirebaseAiGateway @Inject constructor() : AiGateway {
         // pro > flash > lite로 갈수록 저렴한 토큰, 빠른 속도, 낮은 정확도
         // "gemini-2.5-pro", "gemini-2.5-flash", "gemini-2.5-flash-lite"
         val modelName: String = "gemini-2.5-flash-lite"
+        val smartModelName: String = "gemini-2.5-flash"
         val provider: String = "Firebase (SaaS)"
         /**
             v1 - 모든 거래 내역 원본 전송 (Baseline)
@@ -34,6 +39,7 @@ class FirebaseAiGateway @Inject constructor() : AiGateway {
             v2.2 - 시계열 비교 분석 (월별 동일 기간 누적 지출액 추이 비교)
         */
         val agentVersion: String = "v2.2"
+        val useDetailedAnalysis: Boolean = false
     }
 
     private val model = Firebase.vertexAI.generativeModel(
@@ -43,38 +49,60 @@ class FirebaseAiGateway @Inject constructor() : AiGateway {
             responseMimeType = "application/json"
         }
     )
+    private val smartModel = Firebase.vertexAI.generativeModel(
+
+        modelName = smartModelName,
+        generationConfig = generationConfig {
+            responseMimeType = "application/json"
+        }
+    )
 
     private val json = Json { ignoreUnknownKeys = true }
 
-    override suspend fun parseExpense(input: String): Result<ExpenseEntity> {
-        Log.d(TAG, "parseExpense: input=$input")
-        val prompt = """
-            Extract expense details from the following Korean text and return as JSON.
-            Text: "$input"
-            
-            JSON structure:
-            {
-                "title": "category name (e.g., 식비, 교통비, 쇼핑)",
-                "amount": numeric_value,
-                "date": "dd/MM/yyyy (use today's date if not specified: 22/08/2026)",
-                "type": "Expense"
-            }
-        """.trimIndent()
+    override suspend fun parseExpense(input: String, isIncome: Boolean): Result<ExpenseEntity> {
+        Log.d(TAG, "parseExpense: input=$input, isIncome=$isIncome")
+        val now = Calendar.getInstance()
+        val categories = if (isIncome) Utils.incomeCategories else Utils.expenseCategories
+        val todayDate = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(now.time)
+        
+        // AI가 참고할 최근 14일치 달력 생성
+        val referenceCalendar = StringBuilder()
+        val refFormat = SimpleDateFormat("yyyy-MM-dd (EEEE)", Locale.US)
+        val tempCal = Calendar.getInstance()
+        for (i in 0 until 14) {
+            referenceCalendar.append("- ${refFormat.format(tempCal.time)}${if (i == 0) " [TODAY]" else ""}\n")
+            tempCal.add(Calendar.DAY_OF_YEAR, -1)
+        }
+
+        val prompt = AiPromptTemplates.getParseExpensePrompt(
+            isIncome = isIncome,
+            categories = categories,
+            referenceCalendar = referenceCalendar.toString(),
+            todayDate = todayDate,
+            input = input
+        )
 
         Log.d(TAG, "parseExpense: geminiInput=\n$prompt")
 
         return try {
-            val response = model.generateContent(prompt)
+            val response = smartModel.generateContent(prompt)
             val responseText = response.text ?: throw Exception("Empty response from AI")
             Log.d(TAG, "parseExpense: response=$responseText")
-            val entity = json.decodeFromString<ExpenseEntityJson>(responseText)
+            
+            val entityJson = json.decodeFromString<ExpenseEntityJson>(responseText)
+            
+            val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.US)
+            val parsedDate = dateFormat.parse(entityJson.date) ?: now.time
+            val resultCal = Calendar.getInstance().apply { time = parsedDate }
+
             Result.success(
                 ExpenseEntity(
                     id = null,
-                    title = entity.title,
-                    amount = entity.amount,
-                    date = entity.date,
-                    type = entity.type
+                    title = entityJson.title,
+                    amount = entityJson.amount,
+                    date = SimpleDateFormat("dd/MM/yyyy", Locale.US).format(resultCal.time),
+                    type = entityJson.type,
+                    category = entityJson.category
                 )
             )
         } catch (e: Exception) {
@@ -172,7 +200,7 @@ class FirebaseAiGateway @Inject constructor() : AiGateway {
             val diff = currentMonthAmount - lastMonthAmount
             val percent = (diff / lastMonthAmount) * 100
             if (diff > 0) "지난 달 동기 대비 ${String.format(Locale.getDefault(), "%.1f", percent)}% 증가"
-            else "지난 달 동기 대비 ${String.format(Locale.getDefault(), "%.1f", Math.abs(percent))}% 감소"
+            else "지난 달 동기 대비 ${String.format(Locale.getDefault(), "%.1f", kotlin.math.abs(percent))}% 감소"
         } else "비교 데이터 부족"
 
         val comparisonText = """
@@ -235,42 +263,27 @@ class FirebaseAiGateway @Inject constructor() : AiGateway {
             "${index + 1}. date: $isoDate | category: ${it.category.ifBlank { "미지정" }} | title: ${it.title} | type: ${it.type} | amount: ${String.format(Locale.getDefault(), "%,.0f", it.amount)} ₩"
         }
 
-        val prompt = """
-             Analyze the following formatted expense data for the period ($periodText) and provide a report in JSON format.
-             Be concise and provide specific financial advice in Korean.
-             
-             [CRITICAL RULES]
-            1. Focus on Spending Pace: In "Section 5", compare the "이번 달 현재까지 총 지출" with the "지난 달 동일 기간 지출". Warn the user if they are spending faster than last month.
-            2. Yearly Context: If "Section 6" is provided, compare the yearly "월 평균 지출" (Monthly Averages) to identify long-term inflation or lifestyle changes. Mention if current spending is significantly higher or lower than the historical monthly average.
-            3. Grounding: You MUST base your analysis EXACTLY on the item names provided in "Section 3. High-Value Spending".
-            4. Focus on Trends: Focus purely on the categories and item names.
-            5. Output Format: Return ONLY a valid JSON object without markdown formatting.
-    
-            ## 1. Monthly Summary
-            $monthlyText
-            
-            ## 2. Category Distribution
-            $categoryText
-            
-            ## 3. High-Value Spending (Top 10)
-            $top10Text
-            
-            ## 4. Recent 30 Days Detailed History
-            $recentHistoryText
-            
-            ## 5. Month-over-Month Comparison (Run-rate)
-            $comparisonText
-            
-            ${if (yearlyTrendText.isNotBlank()) "## 6. Yearly Trend Analysis (Monthly Averages)\n$yearlyTrendText" else ""}
-            
-            JSON structure:
-            {
-                "summary": "Short summary of overall spending in Korean",
-                "insights": ["insight 1", "insight 2", "insight 3", "insight 4"], // max 5
-                "savingTips": ["tip 1", "tip 2"],  // max 3
-                "period": "Period of analysis (e.g., $periodText)"
-            }
-        """.trimIndent()
+        val prompt = if (useDetailedAnalysis) {
+            AiPromptTemplates.getAnalyzeDetailSpendingPrompt(
+                periodText = periodText,
+                monthlyText = monthlyText,
+                categoryText = categoryText,
+                top10Text = top10Text,
+                recentHistoryText = recentHistoryText,
+                comparisonText = comparisonText,
+                yearlyTrendText = yearlyTrendText
+            )
+        } else {
+            AiPromptTemplates.getAnalyzeSpendingPrompt(
+                periodText = periodText,
+                monthlyText = monthlyText,
+                categoryText = categoryText,
+                top10Text = top10Text,
+                recentHistoryText = recentHistoryText,
+                comparisonText = comparisonText,
+                yearlyTrendText = yearlyTrendText
+            )
+        }
 
         Log.d(TAG, "analyzeSpending: geminiInput=\n$prompt")
 
@@ -288,10 +301,24 @@ class FirebaseAiGateway @Inject constructor() : AiGateway {
                 TAG,
                 "analyzeSpending: response=$responseText (took ${durationMs}ms, tokens: prompt=$promptTokens, candidates=$candidatesTokens, total=$totalTokens)"
             )
-            val report = json.decodeFromString<AiAnalysisReport>(responseText)
+            val decodedReport = json.decodeFromString<AiAnalysisReport>(responseText)
+
+            // 상세 분석 모드인 경우 기존 UI/DB 호환을 위해 필드 매핑
+            val finalReport = if (useDetailedAnalysis) {
+                decodedReport.copy(
+                    summary = decodedReport.executiveSummary ?: decodedReport.summary ?: "",
+                    insights = decodedReport.keyInsights?.map { "${it.topic}: ${it.finding} (${it.implication})" }
+                        ?: decodedReport.insights ?: emptyList(),
+                    savingTips = decodedReport.actionableStrategies?.map { "[${it.urgency}] ${it.advice} - ${it.expectedImpact}" }
+                        ?: decodedReport.savingTips ?: emptyList()
+                )
+            } else {
+                decodedReport
+            }
+
             Result.success(
                 AiAnalysisResultData(
-                    report = report,
+                    report = finalReport,
                     geminiPrompt = prompt,
                     responseTimeMs = durationMs,
                     promptTokens = promptTokens,
@@ -307,12 +334,14 @@ class FirebaseAiGateway @Inject constructor() : AiGateway {
             Result.failure(e)
         }
     }
-
-    @kotlinx.serialization.Serializable
-    private data class ExpenseEntityJson(
-        val title: String,
-        val amount: Double,
-        val date: String,
-        val type: String
-    )
 }
+
+@OptIn(InternalSerializationApi::class)
+@Serializable
+private data class ExpenseEntityJson(
+    val title: String,
+    val category: String = "",
+    val amount: Double,
+    val date: String,
+    val type: String
+)

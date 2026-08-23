@@ -184,9 +184,9 @@ class StatsViewModel @Inject constructor(
                         promptCharLength = resultData.geminiPrompt.length,
                         responseCharLength = resultData.rawResponseJson.length,
                         finishReason = "STOP",
-                        summary = resultData.report.summary,
-                        insights = resultData.report.insights.joinToString("\n"),
-                        savingTips = resultData.report.savingTips.joinToString("\n"),
+                        summary = resultData.report.summary ?: "",
+                        insights = resultData.report.insights?.joinToString("\n") ?: "",
+                        savingTips = resultData.report.savingTips?.joinToString("\n") ?: "",
                         createdAt = System.currentTimeMillis()
                     )
 

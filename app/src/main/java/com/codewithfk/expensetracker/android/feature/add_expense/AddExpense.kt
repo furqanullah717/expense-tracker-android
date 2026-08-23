@@ -2,6 +2,11 @@
 
 package com.codewithfk.expensetracker.android.feature.add_expense
 
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -18,7 +23,6 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.DropdownMenu
@@ -37,12 +41,16 @@ import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -194,14 +202,17 @@ fun DataForm(
     viewModel: AddExpenseViewModel
 ) {
 
-    val name = remember {
+    val transactionTitle = remember {
         mutableStateOf("")
+    }
+    val name = remember {
+        mutableStateOf(if (isIncome) Utils.incomeCategories[0] else Utils.expenseCategories[0])
     }
     val amount = remember {
         mutableStateOf("")
     }
     val date = remember {
-        mutableLongStateOf(0L)
+        mutableLongStateOf(System.currentTimeMillis())
     }
     val dateDialogVisibility = remember {
         mutableStateOf(false)
@@ -216,8 +227,11 @@ fun DataForm(
 
     LaunchedEffect(parsedExpense.value) {
         parsedExpense.value?.let {
-            name.value = it.title
-            amount.value = it.amount.toString()
+            transactionTitle.value = it.title
+            name.value = it.category
+            // 원화(KRW)이므로 소수점 제거를 위해 반올림 처리
+            amount.value = Math.round(it.amount).toString()
+            // AI가 반환한 날짜(dd/MM/yyyy)를 밀리초로 변환하여 동기화
             date.longValue = Utils.getMillisFromDate(it.date)
         }
     }
@@ -239,15 +253,30 @@ fun DataForm(
             value = aiInput.value,
             onValueChange = { aiInput.value = it },
             modifier = Modifier.fillMaxWidth(),
-            placeholder = { ExpenseTextView(text = "예: 오늘 점심 만원 썼어") },
+            textStyle = TextStyle(color = Color.Black, fontSize = 14.sp),
+            placeholder = { 
+                ExpenseTextView(
+                    text = if (isIncome) "예: 화요일 월급 512만원 입금" else "예: 오늘 점심 만원 썼어",
+                    color = Color.LightGray,
+                    fontSize = 14.sp
+                ) 
+            },
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedBorderColor = Color.Black,
+                unfocusedBorderColor = Color.Black,
+                cursorColor = Color.Black,
+                focusedTextColor = Color.Black,
+                unfocusedTextColor = Color.Black
+            ),
             trailingIcon = {
                 if (isAiLoading.value) {
-                    CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                    AiLoadingIndicator(modifier = Modifier.size(24.dp))
                 } else {
-                    IconButton(onClick = { viewModel.parseExpenseWithAi(aiInput.value) }) {
-                        Icon(
-                            painter = painterResource(id = R.drawable.ic_notification), // placeholder icon
-                            contentDescription = "AI 파싱"
+                    IconButton(onClick = { viewModel.parseExpenseWithAi(aiInput.value, isIncome) }) {
+                        Image(
+                            painter = painterResource(id = R.drawable.ic_gemini_color),
+                            contentDescription = "AI 파싱",
+                            modifier = Modifier.size(24.dp)
                         )
                     }
                 }
@@ -255,34 +284,28 @@ fun DataForm(
         )
         Spacer(modifier = Modifier.size(24.dp))
         
-        TitleComponent(title = "이름/카테고리")
+        TitleComponent(title = "거래 내역 명칭")
+        OutlinedTextField(
+            value = transactionTitle.value,
+            onValueChange = { transactionTitle.value = it },
+            modifier = Modifier.fillMaxWidth(),
+            textStyle = TextStyle(color = Color.Black, fontSize = 14.sp),
+            placeholder = { ExpenseTextView(text = "예: 스타벅스 커피, 월급", color = Color.LightGray) },
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedBorderColor = Color.Black,
+                unfocusedBorderColor = Color.Black,
+                cursorColor = Color.Black,
+                focusedTextColor = Color.Black,
+                unfocusedTextColor = Color.Black
+            )
+        )
+
+        Spacer(modifier = Modifier.size(24.dp))
+        
+        TitleComponent(title = "카테고리")
         ExpenseDropDown(
-            if (isIncome) listOf(
-                "월급",
-                "프리랜서",
-                "투자",
-                "보너스",
-                "임대 수입",
-                "기타 수입"
-            ) else listOf(
-                "식비",
-                "넷플릭스",
-                "월세",
-                "카페/스타벅스",
-                "쇼핑",
-                "교통비",
-                "공과금",
-                "외식",
-                "문화생활",
-                "의료/건강",
-                "보험",
-                "통신/구독",
-                "교육",
-                "대출 상환",
-                "선물/기부",
-                "여행",
-                "기타 지출"
-            ),
+            selectedValue = name.value,
+            listOfItems = if (isIncome) Utils.incomeCategories else Utils.expenseCategories,
             onItemSelected = {
                 name.value = it
             })
@@ -338,7 +361,7 @@ fun DataForm(
             onClick = {
                 val model = ExpenseEntity(
                     id = null,
-                    title = name.value,
+                    title = transactionTitle.value.ifBlank { name.value },
                     amount = amount.value.toDoubleOrNull() ?: 0.0,
                     date = Utils.formatDateToHumanReadableForm(date.longValue),
                     type = type.value,
@@ -385,6 +408,43 @@ fun ExpenseDatePickerDialog(
 }
 
 @Composable
+fun AiLoadingIndicator(modifier: Modifier = Modifier) {
+    val infiniteTransition = rememberInfiniteTransition(label = "GeminiLoading")
+
+    // 부드럽게 커졌다가 작아지는 펄스 애니메이션
+    val scale by infiniteTransition.animateFloat(
+        initialValue = 0.8f,
+        targetValue = 1.2f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(800, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+            repeatMode = androidx.compose.animation.core.RepeatMode.Reverse
+        ),
+        label = "Pulse"
+    )
+
+    // 은은하게 회전하는 애니메이션 (선택 사항, 필요 없으면 제거 가능)
+    val rotation by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 360f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(3000, easing = LinearEasing)
+        ),
+        label = "Rotation"
+    )
+
+    Box(
+        modifier = modifier.scale(scale),
+        contentAlignment = Alignment.Center
+    ) {
+        Image(
+            painter = painterResource(id = R.drawable.ic_gemini_color),
+            contentDescription = "Gemini Loading",
+            modifier = Modifier.fillMaxSize().rotate(rotation)
+        )
+    }
+}
+
+@Composable
 fun TitleComponent(title: String) {
     ExpenseTextView(
         text = title.uppercase(),
@@ -396,16 +456,14 @@ fun TitleComponent(title: String) {
 }
 
 @Composable
-fun ExpenseDropDown(listOfItems: List<String>, onItemSelected: (item: String) -> Unit) {
+fun ExpenseDropDown(selectedValue: String, listOfItems: List<String>, onItemSelected: (item: String) -> Unit) {
     val expanded = remember {
         mutableStateOf(false)
     }
-    val selectedItem = remember {
-        mutableStateOf(listOfItems[0])
-    }
+
     ExposedDropdownMenuBox(expanded = expanded.value, onExpandedChange = { expanded.value = it }) {
         OutlinedTextField(
-            value = selectedItem.value,
+            value = selectedValue,
             onValueChange = {},
             modifier = Modifier
                 .fillMaxWidth()
@@ -429,8 +487,7 @@ fun ExpenseDropDown(listOfItems: List<String>, onItemSelected: (item: String) ->
         ExposedDropdownMenu(expanded = expanded.value, onDismissRequest = { }) {
             listOfItems.forEach {
                 DropdownMenuItem(text = { ExpenseTextView(text = it) }, onClick = {
-                    selectedItem.value = it
-                    onItemSelected(selectedItem.value)
+                    onItemSelected(it)
                     expanded.value = false
                 })
             }

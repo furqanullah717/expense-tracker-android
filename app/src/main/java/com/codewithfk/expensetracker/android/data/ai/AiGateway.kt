@@ -26,7 +26,7 @@ interface AiGateway {
      * Parses a natural language input string into a structured ExpenseEntity.
      * Example: "오늘 식비로 15000원 썼어" -> ExpenseEntity(title="식비", amount=15000.0, ...)
      */
-    suspend fun parseExpense(input: String): Result<ExpenseEntity>
+    suspend fun parseExpense(input: String, isIncome: Boolean): Result<ExpenseEntity>
 
     /**
      * Analyzes a list of expenses to provide insights and saving tips.

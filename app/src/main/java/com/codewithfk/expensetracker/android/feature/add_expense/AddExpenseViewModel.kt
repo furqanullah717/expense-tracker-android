@@ -31,11 +31,11 @@ class AddExpenseViewModel @Inject constructor(
     private val _errorMessage = MutableStateFlow<String?>(null)
     val errorMessage: StateFlow<String?> = _errorMessage
 
-    fun parseExpenseWithAi(input: String) {
+    fun parseExpenseWithAi(input: String, isIncome: Boolean) {
         viewModelScope.launch {
             _errorMessage.value = null
             _isAiLoading.value = true
-            val result = aiGateway.parseExpense(input)
+            val result = aiGateway.parseExpense(input, isIncome)
             result.onSuccess {
                 _parsedExpense.value = it
             }.onFailure {
