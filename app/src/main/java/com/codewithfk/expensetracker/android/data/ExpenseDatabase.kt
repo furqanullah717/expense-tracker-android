@@ -6,21 +6,19 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
+import com.codewithfk.expensetracker.android.data.dao.AiAnalysisDao
 import com.codewithfk.expensetracker.android.data.dao.ExpenseDao
+import com.codewithfk.expensetracker.android.data.model.AiAnalysisEntity
 import com.codewithfk.expensetracker.android.data.model.ExpenseEntity
 import dagger.hilt.android.qualifiers.ApplicationContext
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import javax.inject.Inject
-import javax.inject.Provider
 import javax.inject.Singleton
 
-@Database(entities = [ExpenseEntity::class], version = 2, exportSchema = false)
+@Database(entities = [ExpenseEntity::class, AiAnalysisEntity::class], version = 8, exportSchema = false)
 @Singleton
 abstract class ExpenseDatabase : RoomDatabase() {
 
     abstract fun expenseDao(): ExpenseDao
+    abstract fun aiAnalysisDao(): AiAnalysisDao
 
     companion object {
         const val DATABASE_NAME = "expense_database"
@@ -36,6 +34,7 @@ abstract class ExpenseDatabase : RoomDatabase() {
                     DATABASE_NAME
                 )
                     .addMigrations(MIGRATION_1_2)
+                    .fallbackToDestructiveMigration()
                     .build()
                 INSTANCE = instance
                 instance

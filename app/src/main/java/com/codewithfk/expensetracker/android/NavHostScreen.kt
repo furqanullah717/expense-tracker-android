@@ -22,20 +22,27 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.codewithfk.expensetracker.android.auth.LoginRoute
 import com.codewithfk.expensetracker.android.feature.add_expense.AddExpense
 import com.codewithfk.expensetracker.android.feature.home.HomeScreen
+import com.codewithfk.expensetracker.android.feature.stats.AiHistoryScreen
 import com.codewithfk.expensetracker.android.feature.stats.StatsScreen
 import com.codewithfk.expensetracker.android.feature.transaction_detail.TransactionDetailScreen
 import com.codewithfk.expensetracker.android.feature.transactionlist.TransactionListScreen
 import com.codewithfk.expensetracker.android.ui.theme.Zinc
+import com.google.firebase.Firebase
+import com.google.firebase.auth.auth
 
 @Composable
 fun NavHostScreen() {
     val navController = rememberNavController()
-    var bottomBarVisibility by remember {
-        mutableStateOf(true)
+    val isUserLoggedIn = remember { Firebase.auth.currentUser != null }
+    val startDestination = if (isUserLoggedIn) "/home" else "/login"
 
+    var bottomBarVisibility by remember {
+        mutableStateOf(isUserLoggedIn)
     }
+
     Scaffold(bottomBar = {
         AnimatedVisibility(visible = bottomBarVisibility) {
             NavigationBottomBar(
@@ -49,9 +56,14 @@ fun NavHostScreen() {
     }) {
         NavHost(
             navController = navController,
-            startDestination = "/home",
+            startDestination = startDestination,
             modifier = Modifier.padding(it)
         ) {
+            composable(route = "/login") {
+                bottomBarVisibility = false
+                LoginRoute(navController)
+            }
+
             composable(route = "/home") {
                 bottomBarVisibility = true
                 HomeScreen(navController)
@@ -70,8 +82,12 @@ fun NavHostScreen() {
                 bottomBarVisibility = true
                 StatsScreen(navController)
             }
+            composable(route = "/ai_history") {
+                bottomBarVisibility = false
+                AiHistoryScreen(navController)
+            }
             composable(route = "/all_transactions") {
-                bottomBarVisibility = true // Show the bottom bar if you want it visible
+                bottomBarVisibility = true
                 TransactionListScreen(navController)
             }
             composable(
@@ -128,4 +144,3 @@ fun NavigationBottomBar(
         }
     }
 }
-
