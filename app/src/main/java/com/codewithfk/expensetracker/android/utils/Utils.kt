@@ -12,12 +12,12 @@ import java.util.Locale
 object Utils {
 
     fun formatDateToHumanReadableForm(dateInMillis: Long): String {
-        val dateFormatter = SimpleDateFormat("dd/MM/YYYY", Locale.getDefault())
+        val dateFormatter = SimpleDateFormat("dd/MM/yyyy", Locale.US)
         return dateFormatter.format(dateInMillis)
     }
 
     fun formatDateForChart(dateInMillis: Long): String {
-        val dateFormatter = SimpleDateFormat("dd-MMM", Locale.getDefault())
+        val dateFormatter = SimpleDateFormat("dd-MMM", Locale.US)
         return dateFormatter.format(dateInMillis)
     }
 
@@ -27,12 +27,12 @@ object Utils {
     }
 
     fun formatDayMonthYear(dateInMillis: Long): String {
-        val dateFormatter = SimpleDateFormat("MMM dd, yyyy", Locale.getDefault())
+        val dateFormatter = SimpleDateFormat("MMM dd, yyyy", Locale.US)
         return dateFormatter.format(dateInMillis)
     }
 
     fun formatDayMonth(dateInMillis: Long): String {
-        val dateFormatter = SimpleDateFormat("dd/MMM", Locale.getDefault())
+        val dateFormatter = SimpleDateFormat("dd/MMM", Locale.US)
         return dateFormatter.format(dateInMillis)
     }
 
@@ -50,15 +50,14 @@ object Utils {
     }
 
     fun getMilliFromDate(dateFormat: String?): Long {
-        var date = Date()
-        val formatter = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
-        try {
-            date = formatter.parse(dateFormat)
+        if (dateFormat.isNullOrBlank()) return System.currentTimeMillis()
+        val formatter = SimpleDateFormat("dd/MM/yyyy", Locale.US)
+        return try {
+            formatter.parse(dateFormat.trim())?.time ?: System.currentTimeMillis()
         } catch (e: ParseException) {
             e.printStackTrace()
+            System.currentTimeMillis()
         }
-        println("Today is $date")
-        return date.time
     }
 
     fun getItemIcon(item: ExpenseEntity): Int {
@@ -97,14 +96,57 @@ object Utils {
         return formatter.format(Date(timestamp))
     }
 
+    @android.annotation.SuppressLint("MissingPermission")
     fun getNetworkType(context: android.content.Context): String {
         val cm = context.getSystemService(android.content.Context.CONNECTIVITY_SERVICE) as? android.net.ConnectivityManager
             ?: return "Unknown"
         val activeNetwork = cm.activeNetwork ?: return "Offline"
         val capabilities = cm.getNetworkCapabilities(activeNetwork) ?: return "Offline"
+        
         return when {
             capabilities.hasTransport(android.net.NetworkCapabilities.TRANSPORT_WIFI) -> "Wi-Fi"
-            capabilities.hasTransport(android.net.NetworkCapabilities.TRANSPORT_CELLULAR) -> "Cellular (5G/LTE)"
+            capabilities.hasTransport(android.net.NetworkCapabilities.TRANSPORT_CELLULAR) -> {
+                val tm = context.getSystemService(android.content.Context.TELEPHONY_SERVICE) as? android.telephony.TelephonyManager
+                if (tm != null) {
+                    try {
+                        val networkType = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
+                            tm.dataNetworkType
+                        } else {
+                            @Suppress("DEPRECATION")
+                            tm.networkType
+                        }
+                        
+                        when (networkType) {
+                            android.telephony.TelephonyManager.NETWORK_TYPE_GPRS,
+                            android.telephony.TelephonyManager.NETWORK_TYPE_EDGE,
+                            android.telephony.TelephonyManager.NETWORK_TYPE_CDMA,
+                            android.telephony.TelephonyManager.NETWORK_TYPE_1xRTT,
+                            android.telephony.TelephonyManager.NETWORK_TYPE_IDEN -> "2G"
+                            
+                            android.telephony.TelephonyManager.NETWORK_TYPE_UMTS,
+                            android.telephony.TelephonyManager.NETWORK_TYPE_EVDO_0,
+                            android.telephony.TelephonyManager.NETWORK_TYPE_EVDO_A,
+                            android.telephony.TelephonyManager.NETWORK_TYPE_HSDPA,
+                            android.telephony.TelephonyManager.NETWORK_TYPE_HSUPA,
+                            android.telephony.TelephonyManager.NETWORK_TYPE_HSPA,
+                            android.telephony.TelephonyManager.NETWORK_TYPE_EVDO_B,
+                            android.telephony.TelephonyManager.NETWORK_TYPE_EHRPD,
+                            android.telephony.TelephonyManager.NETWORK_TYPE_HSPAP -> "3G"
+                            
+                            android.telephony.TelephonyManager.NETWORK_TYPE_LTE -> "4G/LTE"
+                            
+                            // NETWORK_TYPE_NR (5G) constant is 20
+                            20 -> "5G"
+                            
+                            else -> "Cellular"
+                        }
+                    } catch (_: SecurityException) {
+                        "Cellular"
+                    }
+                } else {
+                    "Cellular"
+                }
+            }
             capabilities.hasTransport(android.net.NetworkCapabilities.TRANSPORT_ETHERNET) -> "Ethernet"
             else -> "Connected"
         }

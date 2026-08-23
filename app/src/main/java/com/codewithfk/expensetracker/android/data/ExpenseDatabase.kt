@@ -13,7 +13,7 @@ import com.codewithfk.expensetracker.android.data.model.ExpenseEntity
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Singleton
 
-@Database(entities = [ExpenseEntity::class, AiAnalysisEntity::class], version = 7, exportSchema = false)
+@Database(entities = [ExpenseEntity::class, AiAnalysisEntity::class], version = 8, exportSchema = false)
 @Singleton
 abstract class ExpenseDatabase : RoomDatabase() {
 

@@ -1,6 +1,7 @@
 package com.codewithfk.expensetracker.android.data.repository
 
 import android.util.Log
+import com.codewithfk.expensetracker.android.data.ai.firebase.FirebaseAiGateway
 import com.codewithfk.expensetracker.android.data.dao.AiAnalysisDao
 import com.codewithfk.expensetracker.android.data.model.AiAnalysisEntity
 import com.google.firebase.Firebase
@@ -24,61 +25,74 @@ class AiHistoryRepository @Inject constructor(
     private fun getUserCollection(userId: String) =
         Firebase.firestore.collection("users").document(userId).collection("ai_analysis_history")
 
-    suspend fun saveReport(entity: AiAnalysisEntity): Long {
+    suspend fun saveReport(entity: AiAnalysisEntity, shouldSaveToFirestore: Boolean = true): Long {
+        Log.d(TAG, "saveReport: shouldSaveToFirestore=$shouldSaveToFirestore, title=${entity.title}")
         val uid = if (entity.userId.isNotBlank()) entity.userId else getCurrentUserId()
-        val docId = if (entity.firestoreId.isNotBlank()) entity.firestoreId else UUID.randomUUID().toString()
+        
+        // 1. 서버 저장 여부에 따라 firestoreId 결정
+        val docId = if (shouldSaveToFirestore) {
+            if (entity.firestoreId.isNotBlank()) entity.firestoreId else UUID.randomUUID().toString()
+        } else {
+            "" // 서버 저장 안 할 경우 명시적으로 빈 값
+        }
+        
         val updatedEntity = entity.copy(userId = uid, firestoreId = docId)
 
-        // Prevent duplicate insertion if record already exists locally
-        val existing = aiAnalysisDao.getReportByFirestoreId(docId)
+        // 2. 중복 체크 (서버 저장할 경우에만 firestoreId로 체크)
+        val existing = if (docId.isNotBlank()) aiAnalysisDao.getReportByFirestoreId(docId) else null
         val finalEntityToSave = if (existing != null && entity.id == 0L) {
             updatedEntity.copy(id = existing.id)
         } else {
             updatedEntity
         }
 
-        // 1. Save to local Room DB
+        // 3. 로컬 DB(Room) 저장
         val localId = aiAnalysisDao.insertReport(finalEntityToSave)
         val finalEntity = finalEntityToSave.copy(id = localId)
 
-        // 2. Save to user-specific Firestore subcollection
-        try {
-            val firestoreData = hashMapOf(
-                "userId" to uid,
-                "firestoreId" to docId,
-                "title" to finalEntity.title,
-                "startDate" to finalEntity.startDate,
-                "endDate" to finalEntity.endDate,
-                "transactionCount" to finalEntity.transactionCount,
-                "totalExpenseSum" to finalEntity.totalExpenseSum,
-                "totalIncomeSum" to finalEntity.totalIncomeSum,
-                "geminiPrompt" to finalEntity.geminiPrompt,
-                "rawResponseJson" to finalEntity.rawResponseJson,
-                "responseTimeMs" to finalEntity.responseTimeMs,
-                "promptTokens" to finalEntity.promptTokens,
-                "candidatesTokens" to finalEntity.candidatesTokens,
-                "totalTokens" to finalEntity.totalTokens,
-                "estimatedCostUsd" to finalEntity.estimatedCostUsd,
-                "estimatedCostKrw" to finalEntity.estimatedCostKrw,
-                "modelName" to finalEntity.modelName,
-                "provider" to finalEntity.provider,
-                "authMethod" to finalEntity.authMethod,
-                "appCheckStatus" to finalEntity.appCheckStatus,
-                "networkType" to finalEntity.networkType,
-                "deviceModel" to finalEntity.deviceModel,
-                "osVersion" to finalEntity.osVersion,
-                "promptCharLength" to finalEntity.promptCharLength,
-                "responseCharLength" to finalEntity.responseCharLength,
-                "finishReason" to finalEntity.finishReason,
-                "summary" to finalEntity.summary,
-                "insights" to finalEntity.insights,
-                "savingTips" to finalEntity.savingTips,
-                "createdAt" to finalEntity.createdAt
-            )
-            getUserCollection(uid).document(docId).set(firestoreData).await()
-            Log.d(TAG, "Successfully saved AI analysis to Firestore for user $uid: $docId")
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to save AI analysis to Firestore: ${e.message}", e)
+        // 4. Firestore 저장 (조건 엄격화)
+        if (shouldSaveToFirestore && docId.isNotBlank() && uid != "anonymous") {
+            try {
+                val firestoreData = hashMapOf(
+                    "userId" to uid,
+                    "firestoreId" to docId,
+                    "title" to finalEntity.title,
+                    "startDate" to finalEntity.startDate,
+                    "endDate" to finalEntity.endDate,
+                    "transactionCount" to finalEntity.transactionCount,
+                    "totalExpenseSum" to finalEntity.totalExpenseSum,
+                    "totalIncomeSum" to finalEntity.totalIncomeSum,
+                    "geminiPrompt" to finalEntity.geminiPrompt,
+                    "rawResponseJson" to finalEntity.rawResponseJson,
+                    "responseTimeMs" to finalEntity.responseTimeMs,
+                    "promptTokens" to finalEntity.promptTokens,
+                    "candidatesTokens" to finalEntity.candidatesTokens,
+                    "totalTokens" to finalEntity.totalTokens,
+                    "estimatedCostUsd" to finalEntity.estimatedCostUsd,
+                    "estimatedCostKrw" to finalEntity.estimatedCostKrw,
+                    "modelName" to finalEntity.modelName,
+                    "agentVersion" to finalEntity.agentVersion,
+                    "provider" to finalEntity.provider,
+                    "authMethod" to finalEntity.authMethod,
+                    "appCheckStatus" to finalEntity.appCheckStatus,
+                    "networkType" to finalEntity.networkType,
+                    "deviceModel" to finalEntity.deviceModel,
+                    "osVersion" to finalEntity.osVersion,
+                    "promptCharLength" to finalEntity.promptCharLength,
+                    "responseCharLength" to finalEntity.responseCharLength,
+                    "finishReason" to finalEntity.finishReason,
+                    "summary" to finalEntity.summary,
+                    "insights" to finalEntity.insights,
+                    "savingTips" to finalEntity.savingTips,
+                    "createdAt" to finalEntity.createdAt
+                )
+                getUserCollection(uid).document(docId).set(firestoreData).await()
+                Log.d(TAG, "Successfully saved AI analysis to Firestore for user $uid: $docId")
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to save AI analysis to Firestore: ${e.message}", e)
+            }
+        } else {
+            Log.d(TAG, "Skipping Firestore save. shouldSave=$shouldSaveToFirestore, docId=$docId, uid=$uid")
         }
 
         return localId
@@ -143,11 +157,12 @@ class AiHistoryRepository @Inject constructor(
                         totalTokens = (doc.getLong("totalTokens") ?: 0L).toInt(),
                         estimatedCostUsd = doc.getDouble("estimatedCostUsd") ?: 0.0,
                         estimatedCostKrw = doc.getDouble("estimatedCostKrw") ?: 0.0,
-                        modelName = doc.getString("modelName") ?: "gemini-2.5-flash",
-                        provider = doc.getString("provider") ?: "Firebase (SaaS)",
+                        modelName = doc.getString("modelName") ?: FirebaseAiGateway.modelName,
+                        agentVersion = doc.getString("agentVersion") ?: FirebaseAiGateway.agentVersion,
+                        provider = doc.getString("provider") ?: FirebaseAiGateway.provider,
                         authMethod = doc.getString("authMethod") ?: "Firebase App Check (Debug/Integrity)",
                         appCheckStatus = doc.getString("appCheckStatus") ?: "Verified",
-                        networkType = doc.getString("networkType") ?: "Wi-Fi",
+                        networkType = doc.getString("networkType") ?: "Unknown",
                         deviceModel = doc.getString("deviceModel") ?: "",
                         osVersion = doc.getString("osVersion") ?: "",
                         promptCharLength = (doc.getLong("promptCharLength") ?: 0L).toInt(),

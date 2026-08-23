@@ -337,11 +337,12 @@ fun DataForm(
         Button(
             onClick = {
                 val model = ExpenseEntity(
-                    null,
-                    name.value,
-                    amount.value.toDoubleOrNull() ?: 0.0,
-                    Utils.formatDateToHumanReadableForm(date.longValue),
-                    type.value
+                    id = null,
+                    title = name.value,
+                    amount = amount.value.toDoubleOrNull() ?: 0.0,
+                    date = Utils.formatDateToHumanReadableForm(date.longValue),
+                    type = type.value,
+                    category = name.value
                 )
                 onAddExpenseClick(model)
             }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(8.dp)

@@ -12,7 +12,8 @@ data class AiAnalysisResultData(
     val candidatesTokens: Int? = null,
     val totalTokens: Int? = null,
     val modelName: String = FirebaseAiGateway.modelName,
-    val provider: String = "Firebase (SaaS)",
+    val agentVersion: String = FirebaseAiGateway.agentVersion,
+    val provider: String = FirebaseAiGateway.provider,
     val rawResponseJson: String = ""
 )
 

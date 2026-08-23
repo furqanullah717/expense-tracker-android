@@ -37,4 +37,7 @@ interface AiAnalysisDao {
 
     @Query("DELETE FROM ai_analysis_history WHERE userId = :userId")
     suspend fun deleteAllForUser(userId: String)
+
+    @Query("DELETE FROM ai_analysis_history WHERE firestoreId = '' OR firestoreId IS NULL")
+    suspend fun deleteTemporaryReports()
 }

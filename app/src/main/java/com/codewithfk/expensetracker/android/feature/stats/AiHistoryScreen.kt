@@ -355,8 +355,23 @@ fun AiHistoryCard(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
+                if (item.firestoreId.isEmpty()) {
+                    InfoBadge(
+                        text = "🔒 로컬 전용 (앱 재실행 시 삭제)",
+                        bgColor = Color(0xFFFFF3E0),
+                        textColor = Color(0xFFE65100)
+                    )
+                } else {
+                    InfoBadge(
+                        text = "☁️ 클라우드 저장됨",
+                        bgColor = Color(0xFFE3F2FD),
+                        textColor = Color(0xFF1976D2)
+                    )
+                }
+                
                 InfoBadge(text = "🏷️ ${item.provider}", bgColor = Zinc.copy(alpha = 0.12f), textColor = Zinc)
                 InfoBadge(text = "🤖 ${item.modelName}")
+                InfoBadge(text = "🛠️ ${item.agentVersion}")
                 InfoBadge(text = "⏱️ 소요시간: ${Utils.formatDurationMs(item.responseTimeMs)}")
                 if (item.totalTokens > 0) {
                     InfoBadge(text = "🪙 토큰: ${item.totalTokens} (입력 ${item.promptTokens} / 출력 ${item.candidatesTokens})")
@@ -667,6 +682,7 @@ fun formatEntityToJson(item: AiAnalysisEntity): String {
         put("estimatedCostUsd", item.estimatedCostUsd)
         put("estimatedCostKrw", item.estimatedCostKrw)
         put("modelName", item.modelName)
+        put("agentVersion", item.agentVersion)
         put("provider", item.provider)
         put("authMethod", item.authMethod)
         put("appCheckStatus", item.appCheckStatus)

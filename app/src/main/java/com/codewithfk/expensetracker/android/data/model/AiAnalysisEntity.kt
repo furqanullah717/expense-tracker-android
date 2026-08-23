@@ -2,6 +2,7 @@ package com.codewithfk.expensetracker.android.data.model
 
 import androidx.room.Entity
 import androidx.room.PrimaryKey
+import com.codewithfk.expensetracker.android.data.ai.firebase.FirebaseAiGateway
 
 @Entity(tableName = "ai_analysis_history")
 data class AiAnalysisEntity(
@@ -23,11 +24,12 @@ data class AiAnalysisEntity(
     val totalTokens: Int = 0,
     val estimatedCostUsd: Double = 0.0,
     val estimatedCostKrw: Double = 0.0,
-    val modelName: String = "gemini-2.5-flash",
-    val provider: String = "Firebase (SaaS)",
+    val modelName: String = FirebaseAiGateway.modelName,
+    val agentVersion: String = FirebaseAiGateway.agentVersion,
+    val provider: String = FirebaseAiGateway.provider,
     val authMethod: String = "Firebase App Check (Debug/Integrity)",
     val appCheckStatus: String = "Verified",
-    val networkType: String = "Wi-Fi",
+    val networkType: String = "Unknown",
     val deviceModel: String = "",
     val osVersion: String = "",
     val promptCharLength: Int = 0,

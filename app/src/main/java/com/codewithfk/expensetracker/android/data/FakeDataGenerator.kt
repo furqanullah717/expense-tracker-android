@@ -33,6 +33,16 @@ object FakeDataGenerator {
         "식비/장보기", "식비/장보기", "카페/간식", "외식/배달", "교통/차량", "생활/마트", "자녀교육/교재", "쇼핑/의류", "자녀/용돈", "의료/건강", "경조사/기타"
     )
 
+    private fun roundAmount(amount: Double, category: String): Double {
+        return if (category == "자녀/용돈") {
+            // 자녀 용돈은 만 원 단위로 반올림
+            (Math.round(amount / 10000.0) * 10000.0)
+        } else {
+            // 그 외 모든 금액은 최소 10원 단위로 반올림
+            (Math.round(amount / 10.0) * 10.0)
+        }
+    }
+
     suspend fun generateFakeData(dao: ExpenseDao) {
         dao.deleteAllExpenses()
         val dateFormat = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
@@ -89,7 +99,8 @@ object FakeDataGenerator {
                 }
             }
 
-            expenseList.add(entity)
+            val roundedEntity = entity.copy(amount = roundAmount(entity.amount, entity.category))
+            expenseList.add(roundedEntity)
 
             // 100건씩 배치 삽입 (성능과 UI 업데이트 체감 속도 향상)
             if (expenseList.size >= 30) {

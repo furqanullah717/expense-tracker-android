@@ -1,6 +1,7 @@
 package com.codewithfk.expensetracker.android.feature.stats
 
 import android.content.Context
+import android.util.Log
 import androidx.lifecycle.viewModelScope
 import com.codewithfk.expensetracker.android.base.BaseViewModel
 import com.codewithfk.expensetracker.android.base.UiEvent
@@ -32,6 +33,11 @@ class StatsViewModel @Inject constructor(
     private val aiHistoryRepository: AiHistoryRepository,
     private val aiGateway: AiGateway
 ) : BaseViewModel() {
+    companion object {
+        // 앱 세션 동안 단 한 번만 임시 기록을 삭제하도록 플래그 관리
+        private var hasCleanedUpTemporaryReports = false
+    }
+
     val entries = dao.getAllExpenseByDate()
     val topEntries = dao.getTopExpenses()
 
@@ -56,7 +62,19 @@ class StatsViewModel @Inject constructor(
     private val _lastSavedEntity = MutableStateFlow<AiAnalysisEntity?>(null)
     val lastSavedEntity: StateFlow<AiAnalysisEntity?> = _lastSavedEntity
 
+    private val _shouldSaveToCloud = MutableStateFlow(true)
+    val shouldSaveToCloud: StateFlow<Boolean> = _shouldSaveToCloud
+
     init {
+        // 앱 실행 후 첫 ViewModel 생성 시에만 서버에 저장되지 않은(임시) 분석 기록 삭제
+        if (!hasCleanedUpTemporaryReports) {
+            viewModelScope.launch {
+                aiAnalysisDao.deleteTemporaryReports()
+                hasCleanedUpTemporaryReports = true
+                Log.d("StatsViewModel", "Temporary reports cleaned up for this session.")
+            }
+        }
+        
         // Sync previously saved AI reports from Firestore so they persist across reinstallations
         viewModelScope.launch {
             aiHistoryRepository.syncFromFirestore()
@@ -69,7 +87,7 @@ class StatsViewModel @Inject constructor(
         }
     }
 
-    fun analyzeSpendingWithAi(startDateMillis: Long, endDateMillis: Long) {
+    fun analyzeSpendingWithAi(startDateMillis: Long, endDateMillis: Long, shouldSaveToCloud: Boolean = true) {
         viewModelScope.launch {
             _errorMessage.value = null
             _isAiLoading.value = true
@@ -84,9 +102,32 @@ class StatsViewModel @Inject constructor(
                 // Add 1 full day buffer to end date if needed so same-day selection includes full day
                 val endBuffer = normalizedEnd + 86399999L
 
+                // 개선: 정확한 비교 분석을 위해 필요한 충분한 과거 데이터를 확보합니다.
+                // 1. 지난달 1일 (전월 동기 대비 비교용)
+                // 2. 현재로부터 60일 전 (최근 60일 상세 내역용)
+                // 위 두 날짜 중 더 과거의 날짜를 시작점으로 잡습니다.
+                val calendar = java.util.Calendar.getInstance()
+                
+                // 오늘로부터 60일 전
+                calendar.timeInMillis = System.currentTimeMillis()
+                calendar.add(java.util.Calendar.DAY_OF_YEAR, -60)
+                val sixtyDaysAgoMillis = calendar.timeInMillis
+                
+                // 지난달 1일
+                calendar.timeInMillis = normalizedStart
+                calendar.add(java.util.Calendar.MONTH, -1)
+                calendar.set(java.util.Calendar.DAY_OF_MONTH, 1)
+                calendar.set(java.util.Calendar.HOUR_OF_DAY, 0)
+                calendar.set(java.util.Calendar.MINUTE, 0)
+                calendar.set(java.util.Calendar.SECOND, 0)
+                calendar.set(java.util.Calendar.MILLISECOND, 0)
+                val lastMonthFirstDayMillis = calendar.timeInMillis
+                
+                val expandedStartMillis = minOf(sixtyDaysAgoMillis, lastMonthFirstDayMillis)
+
                 val filteredHistory = allExpenses.filter { entity ->
                     val itemMillis = Utils.getMillisFromDate(entity.date)
-                    itemMillis in normalizedStart..endBuffer
+                    itemMillis in expandedStartMillis..endBuffer
                 }.sortedBy { Utils.getMillisFromDate(it.date) }
 
                 if (filteredHistory.isEmpty()) {
@@ -133,6 +174,7 @@ class StatsViewModel @Inject constructor(
                         estimatedCostUsd = costUsd,
                         estimatedCostKrw = costKrw,
                         modelName = resultData.modelName,
+                        agentVersion = resultData.agentVersion,
                         provider = resultData.provider,
                         authMethod = "Firebase App Check (Debug/Integrity)",
                         appCheckStatus = "Verified",
@@ -148,7 +190,8 @@ class StatsViewModel @Inject constructor(
                         createdAt = System.currentTimeMillis()
                     )
 
-                    val localId = aiHistoryRepository.saveReport(entity)
+                    Log.d("StatsViewModel", "Calling saveReport with shouldSaveToCloud=$shouldSaveToCloud")
+                    val localId = aiHistoryRepository.saveReport(entity, shouldSaveToCloud)
                     _lastSavedEntity.value = entity.copy(id = localId)
                 }.onFailure {
                     _errorMessage.value = it.message ?: "알 수 없는 오류가 발생했습니다."
@@ -169,6 +212,10 @@ class StatsViewModel @Inject constructor(
 
     fun clearError() {
         _errorMessage.value = null
+    }
+
+    fun setShouldSaveToCloud(value: Boolean) {
+        _shouldSaveToCloud.value = value
     }
 
     fun getEntriesForChart(entries: List<ExpenseSummary>): List<Entry> {

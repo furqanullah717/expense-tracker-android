@@ -13,6 +13,7 @@ class ExpenseTrackerApp: Application() {
     override fun onCreate() {
         super.onCreate()
         Firebase.initialize(this)
+
         val providerFactory = if (BuildConfig.DEBUG) {
             DebugAppCheckProviderFactory.getInstance()
         } else {
