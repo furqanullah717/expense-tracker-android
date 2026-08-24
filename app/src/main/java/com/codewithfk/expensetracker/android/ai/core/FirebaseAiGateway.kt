@@ -4,6 +4,7 @@ import android.os.Build
 import android.util.Log
 import androidx.annotation.RequiresApi
 import com.codewithfk.expensetracker.android.ai.core.model.AiAnalysisReport
+import com.codewithfk.expensetracker.android.ai.core.model.AiMasterRouterResponse
 import com.codewithfk.expensetracker.android.ai.core.prompt.AiPromptTemplates
 import com.codewithfk.expensetracker.android.data.model.ChatMessageEntity
 import com.codewithfk.expensetracker.android.data.model.ExpenseEntity
@@ -51,7 +52,11 @@ class FirebaseAiGateway @Inject constructor() : AiGateway {
         modelName = modelName
     )
 
-    private val json = Json { ignoreUnknownKeys = true }
+    private val json = Json { 
+        ignoreUnknownKeys = true
+        prettyPrint = true
+        encodeDefaults = true
+    }
 
     override suspend fun parseExpense(input: String, isIncome: Boolean): Result<ExpenseEntity> {
         Log.d(TAG, "parseExpense: input=$input, isIncome=$isIncome")
@@ -96,6 +101,45 @@ class FirebaseAiGateway @Inject constructor() : AiGateway {
             )
         } catch (e: Exception) {
             Log.e(TAG, "parseExpense error: ${e.message}", e)
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun routeIntent(input: String, modelName: String?): Result<AiMasterRouterResultData> {
+        Log.d(TAG, "routeIntent: input=$input, model=$modelName")
+        val todayDate = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Calendar.getInstance().time)
+        val prompt = AiPromptTemplates.getMasterRouterPrompt(input, todayDate)
+
+        val targetModelName = modelName ?: smartModelName
+        val currentModel = if (targetModelName == smartModelName) smartModel 
+        else Firebase.vertexAI.generativeModel(
+            modelName = targetModelName,
+            generationConfig = generationConfig {
+                responseMimeType = "application/json"
+            }
+        )
+
+        return try {
+            val startTime = System.nanoTime()
+            val response = currentModel.generateContent(prompt)
+            val durationMs = (System.nanoTime() - startTime) / 1_000_000
+            
+            val responseText = response.text ?: throw Exception("Empty response from AI")
+            val usage = response.usageMetadata
+            
+            val routerResponse = json.decodeFromString<AiMasterRouterResponse>(responseText)
+            Result.success(
+                AiMasterRouterResultData(
+                    response = routerResponse,
+                    responseTimeMs = durationMs,
+                    promptTokens = usage?.promptTokenCount,
+                    candidatesTokens = usage?.candidatesTokenCount,
+                    totalTokens = usage?.totalTokenCount,
+                    modelName = targetModelName
+                )
+            )
+        } catch (e: Exception) {
+            Log.e(TAG, "routeIntent error: ${e.message}", e)
             Result.failure(e)
         }
     }
@@ -187,17 +231,53 @@ class FirebaseAiGateway @Inject constructor() : AiGateway {
     ): Flow<ChatResponse> = flow {
         val startTime = System.nanoTime()
 
-        // 사용자의 금융 데이터 요약본
-        val historyText = getSummarizedHistoryParts(history).toFullMarkdown()
+        // 1. 마스터 라우터를 통한 인텐트 분류 수행 및 결과 즉시 반환
+        val lastMessage = messages.lastOrNull()?.content ?: ""
+        val routingResultData = routeIntent(lastMessage, modelName).getOrNull()
 
+        // [핵심] 채팅창에 마스터 라우터의 JSON 원본만 표시되도록 함
+        routingResultData?.let { data ->
+            val rawJson = json.encodeToString(AiMasterRouterResponse.serializer(), data.response)
+            emit(ChatResponse.Chunk(rawJson))
+            
+            // 실제 토큰 사용량과 모델명을 메타데이터로 전송
+            emit(ChatResponse.Metadata(
+                promptTokens = data.promptTokens,
+                candidatesTokens = data.candidatesTokens,
+                totalTokens = data.totalTokens,
+                responseTimeMs = data.responseTimeMs,
+                modelName = data.modelName,
+                agentVersion = agentVersion,
+                provider = provider
+            ))
+            return@flow
+        }
+
+        // 2. 사용자의 금융 데이터 요약본 (지출/수입 데이터)
+        val historyText = getSummarizedHistoryParts(history).toFullMarkdown()
         val todayDate = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Calendar.getInstance().time)
 
-        val systemPrompt = AiPromptTemplates.getChatPrompt(historyText, todayDate)
+        // 3. 인텐트에 따른 시스템 프롬프트 조정
+        val systemPrompt = if (routingResultData?.response?.intent == "CONTEXT_REFERENCE") {
+            """
+                ${AiPromptTemplates.getChatPrompt(historyText, todayDate)}
+                
+                [SPECIAL INSTRUCTION: CONTEXT_REFERENCE]
+                사용자가 아주 오래전 대화 내용을 언급하거나 참조하고 있습니다. 
+                제공된 대화 기록(Chat History)을 면밀히 분석하여, 사용자가 가리키는 특정 시점이나 질문에 대해 정확하고 일관성 있게 답변하세요.
+            """.trimIndent()
+        } else {
+            AiPromptTemplates.getChatPrompt(historyText, todayDate)
+        }
 
-        // 슬라이딩 윈도우 적용 (사용자 선택 리밋에 따라 기억 용량 결정)
-        val actualLimit = if (historyLimit <= 0) messages.size else historyLimit
-        val windowMessages = messages.takeLast(actualLimit + 1)
-        val historyToUse = windowMessages.dropLast(1)
+        // 4. 대화 기록 구성 (기본적으로 바로 직전의 1개 대화 턴을 Context로 포함)
+        val historyToUse = if (messages.size >= 3) {
+            messages.dropLast(1).takeLast(2)
+        } else if (messages.size == 2) {
+            messages.take(1)
+        } else {
+            emptyList()
+        }
 
         val chatHistory = historyToUse.map { msg ->
             content(role = if (msg.role == ChatMessageEntity.ROLE_USER) "user" else "model") {
@@ -205,23 +285,15 @@ class FirebaseAiGateway @Inject constructor() : AiGateway {
             }
         }
 
-        // Use requested model or default to modelName
+        // 5. 모델 설정 및 채팅 시작
         val targetModelName = modelName ?: FirebaseAiGateway.modelName
         val currentChatModel = Firebase.vertexAI.generativeModel(modelName = targetModelName)
-        
         val chat = currentChatModel.startChat(history = chatHistory)
 
-        val lastMessage = messages.lastOrNull()?.content ?: ""
+        // 6. 최종 메시지 구성 (시스템 프롬프트 주입)
+        val fullLastMessage = "$systemPrompt\n\nUser Question: $lastMessage"
         
-        // 대화가 잘렸거나 첫 대화인 경우, AI가 맥락을 잊지 않도록 지시사항(systemPrompt)을 다시 포함
-        val isTruncated = messages.size > (historyLimit + 1)
-        val fullLastMessage = if (messages.size <= 1 || isTruncated) {
-            "$systemPrompt\n\nUser Question: $lastMessage"
-        } else {
-            lastMessage
-        }
-        
-        Log.d(TAG, "chatStream: [INPUT TO AI] (Model: $targetModelName, History: ${historyToUse.size}, Truncated: $isTruncated)\n$fullLastMessage")
+        Log.d(TAG, "chatStream: [INPUT TO AI] (Model: $targetModelName, History: ${historyToUse.size}, Intent: ${routingResultData?.response?.intent})\n$fullLastMessage")
 
         try {
             var lastResponse: com.google.firebase.vertexai.type.GenerateContentResponse? = null

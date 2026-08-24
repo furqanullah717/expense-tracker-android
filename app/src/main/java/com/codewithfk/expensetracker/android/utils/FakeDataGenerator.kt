@@ -14,27 +14,50 @@ import java.util.Locale
  */
 object FakeDataGenerator {
 
+    val ALL_CATEGORIES = setOf(
+        "급여/수입", "상여/보너스",
+        "카페/간식", "외식/배달", "교통비", "생활/마트",
+        "자녀교육-학원/과외", "자녀교육-입시컨설팅", "자녀용돈",
+        "쇼핑/의류", "의료/병원", "여행/여가", "주거/보수",
+        "차량/정비", "경조사/명절", "주거/관리비", "가구/가전",
+        "통신/인터넷", "보험/금융", "헬스/건강",
+        "반려동물/간식/장난감", "반려동물/병원/미용",
+        "문화/공연", "OTT", "도서/교육", "저축/적금",
+        "주식/코인", "미용/헤어"
+    )
+
     private data class CategoryItem(val title: String, val range: IntRange)
 
     private val categoryItems: Map<String, List<CategoryItem>> = mapOf(
-        "식비/장보기" to listOf(CategoryItem("이마트 트레이더스 장보기", 120_000..240_000), CategoryItem("코스트코 장보기", 180_000..320_000)),
+        "생활/마트" to listOf(
+            CategoryItem("이마트 트레이더스 장보기", 120_000..240_000),
+            CategoryItem("코스트코 장보기", 180_000..320_000),
+            CategoryItem("다이소 잡화", 15_000..35_000)
+        ),
         "카페/간식" to listOf(CategoryItem("스타벅스 커피", 12_000..25_000), CategoryItem("투썸플레이스 디저트", 15_000..28_000)),
         "외식/배달" to listOf(CategoryItem("아웃백 가족 외식", 140_000..220_000), CategoryItem("상도생고기 외식", 110_000..190_000)),
-        "교통/차량" to listOf(CategoryItem("가솔린 주유", 85_000..130_000)),
-        "생활/마트" to listOf(CategoryItem("다이소 잡화", 15_000..35_000)),
-        "자녀교육/교재" to listOf(CategoryItem("수능 교재 구매", 45_000..110_000)),
+        "교통비" to listOf(CategoryItem("가솔린 주유", 85_000..130_000)),
+        "도서/교육" to listOf(CategoryItem("수능 교재 구매", 45_000..110_000)),
         "쇼핑/의류" to listOf(CategoryItem("백화점 의류 구입", 150_000..350_000)),
-        "자녀/용돈" to listOf(CategoryItem("자녀 용돈 지급", 100_000..150_000)),
-        "의료/건강" to listOf(CategoryItem("내과 진료", 35_000..95_000)),
-        "경조사/기타" to listOf(CategoryItem("경조사 부조금", 100_000..200_000))
+        "자녀용돈" to listOf(CategoryItem("자녀 용돈 지급", 100_000..150_000)),
+        "의료/병원" to listOf(CategoryItem("내과 진료", 35_000..95_000)),
+        "헬스/건강" to listOf(CategoryItem("피트니스 센터 등록", 80_000..150_000), CategoryItem("필라테스 수강", 120_000..250_000)),
+        "반려동물/간식/장난감" to listOf(CategoryItem("반려견 수제간식", 25_000..45_000), CategoryItem("애견 장난감", 15_000..30_000)),
+        "반려동물/병원/미용" to listOf(CategoryItem("반려견 미용", 45_000..85_000), CategoryItem("동물병원 정기검진", 35_000..120_000)),
+        "문화/공연" to listOf(CategoryItem("영화 관람 (4인)", 60_000..80_000), CategoryItem("뮤지컬 티켓", 120_000..280_000)),
+        "OTT" to listOf(CategoryItem("넷플릭스 구독", 17_000..17_000), CategoryItem("유튜브 프리미엄", 14_900..14_900)),
+        "미용/헤어" to listOf(CategoryItem("커트 및 펌", 50_000..150_000)),
+        "저축/적금" to listOf(CategoryItem("청약 저축", 100_000..200_000), CategoryItem("정기 적금", 500_000..1_000_000))
     )
 
     private val weightedDailyCategories = listOf(
-        "식비/장보기", "식비/장보기", "카페/간식", "외식/배달", "교통/차량", "생활/마트", "자녀교육/교재", "쇼핑/의류", "자녀/용돈", "의료/건강", "경조사/기타"
+        "생활/마트", "생활/마트", "생활/마트", "카페/간식", "카페/간식", "외식/배달", "교통비", 
+        "도서/교육", "쇼핑/의류", "자녀용돈", "의료/병원", "헬스/건강", "반려동물/간식/장난감", 
+        "반려동물/병원/미용", "문화/공연", "OTT", "미용/헤어"
     )
 
     private fun roundAmount(amount: Double, category: String): Double {
-        return if (category == "자녀/용돈") {
+        return if (category == "자녀용돈") {
             // 자녀 용돈은 만 원 단위로 반올림
             (Math.round(amount / 10000.0) * 10000.0)
         } else {
@@ -97,7 +120,43 @@ object FakeDataGenerator {
                         7_200_000.0 * inflationRate,
                         dateStr,
                         "Expense",
-                        "차량/구입"
+                        "차량/정비"
+                    )
+                year == 2023 && month == Calendar.MAY && dayOfMonth == 20 ->
+                    ExpenseEntity(
+                        null,
+                        "거실 소파 및 식탁 교체",
+                        4_500_000.0 * inflationRate,
+                        dateStr,
+                        "Expense",
+                        "가구/가전"
+                    )
+                year == 2024 && month == Calendar.NOVEMBER && dayOfMonth == 5 ->
+                    ExpenseEntity(
+                        null,
+                        "삼성 비스포크 냉장고",
+                        3_800_000.0 * inflationRate,
+                        dateStr,
+                        "Expense",
+                        "가구/가전"
+                    )
+                year == 2021 && month == Calendar.JUNE && dayOfMonth == 12 ->
+                    ExpenseEntity(
+                        null,
+                        "반려견 슬개골 탈구 수술",
+                        1_800_000.0 * inflationRate,
+                        dateStr,
+                        "Expense",
+                        "반려동물/병원/미용"
+                    )
+                year == 2022 && month == Calendar.DECEMBER && dayOfMonth == 28 ->
+                    ExpenseEntity(
+                        null,
+                        "미국 주식 정기 매수",
+                        2_500_000.0 * inflationRate,
+                        dateStr,
+                        "Expense",
+                        "주식/코인"
                     )
                 year == 2025 && month == Calendar.JULY && dayOfMonth == 19 ->
                     ExpenseEntity(
@@ -106,7 +165,7 @@ object FakeDataGenerator {
                         2_600_000.0 * inflationRate,
                         dateStr,
                         "Expense",
-                        "자녀교육/입시"
+                        "자녀교육-입시컨설팅"
                     )
                 month == Calendar.FEBRUARY && dayOfMonth == 7 ->
                     ExpenseEntity(
@@ -154,7 +213,7 @@ object FakeDataGenerator {
                     (500_000..850_000).random() * inflationRate,
                     dateStr,
                     "Expense",
-                    "자녀교육/학원"
+                    "자녀교육-학원/과외"
                 )
                 dayOfMonth == 10 -> ExpenseEntity(
                     null,
@@ -162,7 +221,7 @@ object FakeDataGenerator {
                     380_000.0 * inflationRate,
                     dateStr,
                     "Expense",
-                    "주거/공과금"
+                    "주거/관리비"
                 )
                 dayOfMonth == 15 -> ExpenseEntity(
                     null,
@@ -178,7 +237,7 @@ object FakeDataGenerator {
                     (350_000..620_000).random() * inflationRate,
                     dateStr,
                     "Expense",
-                    "자녀교육/과외"
+                    "자녀교육-학원/과외"
                 )
                 dayOfMonth == 20 -> ExpenseEntity(
                     null,

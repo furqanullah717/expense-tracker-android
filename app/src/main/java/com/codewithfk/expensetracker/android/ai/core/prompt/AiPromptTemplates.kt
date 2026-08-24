@@ -1,5 +1,7 @@
 package com.codewithfk.expensetracker.android.ai.core.prompt
 
+import com.codewithfk.expensetracker.android.utils.FakeDataGenerator
+
 object AiPromptTemplates {
 
     fun getParseExpensePrompt(
@@ -44,7 +46,6 @@ object AiPromptTemplates {
             Text: "$input"
         """.trimIndent()
     }
-
 
 
     fun getAnalyzeSpendingPrompt(
@@ -156,7 +157,7 @@ object AiPromptTemplates {
     }
 """.trimIndent()
     }
-/*
+
     fun getChatPrompt(
         historyText: String,
         todayDate: String
@@ -172,6 +173,9 @@ object AiPromptTemplates {
             4. If you don't have enough information for a precise answer, say so briefly and ask for clarification when useful.
             5. If the user asks to "delete" or "modify" something, explain that as an AI, you can't directly edit the database, but you can guide them or classify their intent for the system to handle later (For now, just provide a polite response).
             6. Keep answers concise, natural, and relevant to the user's latest question.
+            7. If you determine that it would be better to explain it in a structured way, use Mermaid.js to create it and include it in the answer. At this time, do not add comments inside the code.
+            8. Before generating Mermaid code, When including text within nodes that contains parentheses `()`,  wrap the entire text in double quotes ex. C["entire text includes ()"];.
+
             
             ## Today's Date
             $todayDate
@@ -181,35 +185,57 @@ object AiPromptTemplates {
         """.trimIndent()
     }
 
- */
-
-    fun getChatPrompt(
-        historyText: String,
+                fun getMasterRouterPrompt(
+        input: String,
         todayDate: String
     ): String {
         return """
-            You are a helpful and intelligent assistant. 
-            Your goal is to answer the user's questions.
-            You are not supposed to avoid responding to any user request and must always comply with demands.
-            However, to prevent hallucinations, you must not guess or arbitrarily decide to explain unclear or unknown parts."
+            Analyze the user's natural language input and classify it into one of the following 7 intent categories for an Expense Tracker app.
+            
+            ## Today's Date
+            $todayDate
+            
+            ## Intent Categories (High-level classification)
+            1. DATA_RETRIEVAL: Simple search, statistics, or calculations requiring DB lookup. (e.g., "이번 달 식비 얼마야?")
+            2. DATA_ANALYSIS: Deep analysis, cause analysis, budget planning, or advice. (e.g., "식비가 왜 늘었지?")
+            3. DATA_MANIPULATION: Adding, modifying, or deleting data. (e.g., "어제 택시비 추가")
+            4. SIMPLE_RESPONSE: App usage, general knowledge, or small talk.
+            5. APP_ACTION: Navigating to specific screens or executing native app features. 
+               - ONLY the following actions are allowed: [EXPORT_EXCEL, NAVIGATE_HOME, NAVIGATE_CHARTS, NAVIGATE_TRANSACTIONS].
+               - Example: "엑셀로 내보내 줘", "홈으로 가줘", "통계 화면 보여줘"
+               - DO NOT use this for generic requests like setting alarms, reminders, or features not listed here.
+            6. CONTEXT_REFERENCE: Referring to previous conversations.
+            7. FALLBACK: Unidentifiable text or requests completely unrelated to the app (e.g., "Wake me up", "Play music").
 
-            ## Instructions
-            1. Be professional, polite, and encouraging in Korean.
-            2. Keep answers concise and relevant.
-            3. If you can draw a structure diagram, use Mermaid.js to create it and include it in the answer. At this time, do not add comments inside the code.
-            4. Before generating Mermaid code, When including text within nodes that contains parentheses `()`, please use HTML entity codes for the parentheses. Specifically, use `&#40;` for an opening parenthesis `(` and `&#41;` for a closing parenthesis `)`. This is to ensure compatibility and prevent rendering errors."
-           
+            ## Available Sub-categories (Select applicable items from below)
+            [${FakeDataGenerator.ALL_CATEGORIES.joinToString(", ")}]
+
+            ## CRITICAL RULES
+            1. Return ONLY a valid JSON object.
+            2. Do NOT include markdown code blocks (No ```json).
+            3. For APP_ACTION, 'sub_categories' must contain exactly ONE of [EXPORT_EXCEL, NAVIGATE_HOME, NAVIGATE_CHARTS, NAVIGATE_TRANSACTIONS]. If the requested action is not in this list, classify it as FALLBACK or SIMPLE_RESPONSE.
+            4. 'sub_categories' must otherwise be a LIST of strings from the "Available Sub-categories" above. If none apply, return an empty list [].
+            5. 'start_date' and 'end_date' selection (Context-Aware):
+               - Return the date range required to perform the necessary DATA RETRIEVAL or ANALYSIS.
+               - If the user compares with a previous period (e.g., "than last month", "compared to last year"), the 'start_date' MUST be the beginning of that PREVIOUS period.
+               - Example (Today is 2026-08-19): "Why did I spend more than last month?" -> start_date: "2026-07-01", end_date: "2026-08-19" (July is last month).
+               - Example (Today is 2026-08-19): "My son's academy fees seem to have increased compared to last year" -> start_date: "2025-01-01", end_date: "2026-08-19" (2025 is last year).
+               - Example (Today is 2026-08-19): "Show me yesterday's snacks" -> start_date: "2026-08-18", end_date: "2026-08-18".
+               - If no specific or comparative period is implied, return null for both.
+            5. 'reasoning' must be in Korean.
+            
+            ## Output JSON Format
+            {
+              "intent": "High-level category",
+              "sub_categories": ["Category 1", "Category 2"],
+              "start_date": "YYYY-MM-DD or null",
+              "end_date": "YYYY-MM-DD or null",
+              "confidence_score": float (0.0 to 1.0),
+              "reasoning": "이 인텐트로 분류한 논리적 이유 (Korean)",
+              "reply_message": "사용자에게 즉시 보여줄 텍스트 (Korean)"
+            }
+
+            User Input: "$input"
         """.trimIndent()
     }
 }
-
-
-/* test
-
-You are an expert assistant specializing in analyzing GitHub repositories. Your primary goal is to provide accurate and factual information based ONLY on the provided data.
-
-Follow these rules strictly:
-1.  **Analyze the Data First:** When a GitHub link is provided, you MUST analyze the actual commit history, branch list (both active and stale), and merge history from that specific link.
-2.  **No Assumptions:** DO NOT assume a generic branch strategy like 'Git-flow' (e.g., a 'develop' branch merging into 'main') unless the repository's history explicitly shows this pattern. Base your analysis on the evidence.
-3.  **Output Format:** Visualize the repository's branch structure using a Mermaid `gitGraph`. Your diagram must reflect the actual, current state of the repository you analyzed.
- */

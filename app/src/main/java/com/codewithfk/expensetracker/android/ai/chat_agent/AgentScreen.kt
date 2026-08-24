@@ -123,7 +123,7 @@ fun AgentScreen(
     val isLoading by viewModel.isLoading.collectAsState()
     val isStreaming by viewModel.isStreaming.collectAsState()
     val streamingMessageId = messages.lastOrNull { it.role == ChatMessageEntity.ROLE_ASSISTANT }?.id
-    
+
     val listState = rememberLazyListState()
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope = rememberCoroutineScope()
@@ -181,9 +181,9 @@ fun AgentScreen(
                     Spacer(Modifier.width(8.dp))
                     Text("새 채팅 시작")
                 }
-                
+
                 HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
-                
+
                 Text(
                     "최근 대화 목록",
                     modifier = Modifier.padding(16.dp),
@@ -194,12 +194,12 @@ fun AgentScreen(
                 LazyColumn {
                     items(sessions) { session ->
                         NavigationDrawerItem(
-                            label = { 
+                            label = {
                                 Text(
-                                    session.title, 
-                                    maxLines = 1, 
-                                    overflow = TextOverflow.Ellipsis 
-                                ) 
+                                    session.title,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
                             },
                             selected = session.id == currentSessionId,
                             onClick = {
@@ -222,13 +222,13 @@ fun AgentScreen(
             containerColor = if (darkTheme) AgentPalette.darkChatBackgroundColor else AgentPalette.lightChatBackgroundColor,
             topBar = {
                 TopAppBar(
-                    title = { 
+                    title = {
                         val sessionTitle = sessions.find { it.id == currentSessionId }?.title ?: "AI Agent Chat"
                         Column {
                             Text(
-                                sessionTitle, 
-                                fontWeight = FontWeight.Bold, 
-                                maxLines = 1, 
+                                sessionTitle,
+                                fontWeight = FontWeight.Bold,
+                                maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
                                 style = MaterialTheme.typography.titleMedium
                             )
@@ -339,7 +339,7 @@ fun AgentScreen(
                             }
                         }
 
-                        IconButton(onClick = { 
+                        IconButton(onClick = {
                             currentSessionId?.let { showDeleteConfirmDialog = it }
                         }) {
                             Icon(Icons.Default.Delete, contentDescription = "Delete Current Chat")
@@ -501,60 +501,60 @@ fun AgentScreen(
                                 }
                             }
 
-                        OutlinedTextField(
-                            value = chatInput,
-                            onValueChange = { viewModel.onChatInputChanged(it) },
-                            modifier = Modifier
-                                .weight(1f),
-                            placeholder = { 
-                                Text(
-                                    "AI에게 물어보세요...", 
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
-                                ) 
-                            },
-                            maxLines = 5,
-                            shape = RoundedCornerShape(24.dp),
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = Color.Transparent,
-                                unfocusedBorderColor = Color.Transparent,
-                                cursorColor = MaterialTheme.colorScheme.primary
-                            ),
-                            textStyle = MaterialTheme.typography.bodyMedium
-                        )
-
-                        IconButton(
-                            onClick = {
-                                if (isLoading) {
-                                    viewModel.stopGeneration()
-                                } else if (chatInput.isNotBlank() || selectedImageUris.isNotEmpty() || selectedFileUris.isNotEmpty()) {
-                                    viewModel.sendMessage(chatInput, selectedImageUris, selectedFileUris)
-                                    selectedImageUris = emptyList()
-                                    selectedFileUris = emptyList()
-                                    keyboardController?.hide()
-                                }
-                            },
-                            enabled = isLoading || chatInput.isNotBlank() || selectedImageUris.isNotEmpty() || selectedFileUris.isNotEmpty(),
-                            modifier = Modifier
-                                .padding(4.dp)
-                                .size(40.dp)
-                                .clip(CircleShape)
-                                .background(
-                                    if (isLoading) MaterialTheme.colorScheme.errorContainer 
-                                    else if (chatInput.isNotBlank() || selectedImageUris.isNotEmpty() || selectedFileUris.isNotEmpty()) MaterialTheme.colorScheme.primary 
-                                    else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
-                                )
-                        ) {
-                            Icon(
-                                imageVector = if (isLoading) Icons.Default.Close else Icons.AutoMirrored.Filled.Send,
-                                contentDescription = if (isLoading) "Stop" else "Send",
-                                tint = if (isLoading) MaterialTheme.colorScheme.onErrorContainer 
-                                       else if (chatInput.isNotBlank() || selectedImageUris.isNotEmpty() || selectedFileUris.isNotEmpty()) MaterialTheme.colorScheme.onPrimary 
-                                       else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
-                                modifier = Modifier.size(20.dp)
+                            OutlinedTextField(
+                                value = chatInput,
+                                onValueChange = { viewModel.onChatInputChanged(it) },
+                                modifier = Modifier
+                                    .weight(1f),
+                                placeholder = {
+                                    Text(
+                                        "AI에게 물어보세요...",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                                    )
+                                },
+                                maxLines = 5,
+                                shape = RoundedCornerShape(24.dp),
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedBorderColor = Color.Transparent,
+                                    unfocusedBorderColor = Color.Transparent,
+                                    cursorColor = MaterialTheme.colorScheme.primary
+                                ),
+                                textStyle = MaterialTheme.typography.bodyMedium
                             )
+
+                            IconButton(
+                                onClick = {
+                                    if (isLoading) {
+                                        viewModel.stopGeneration()
+                                    } else if (chatInput.isNotBlank() || selectedImageUris.isNotEmpty() || selectedFileUris.isNotEmpty()) {
+                                        viewModel.sendMessage(chatInput, selectedImageUris, selectedFileUris)
+                                        selectedImageUris = emptyList()
+                                        selectedFileUris = emptyList()
+                                        keyboardController?.hide()
+                                    }
+                                },
+                                enabled = isLoading || chatInput.isNotBlank() || selectedImageUris.isNotEmpty() || selectedFileUris.isNotEmpty(),
+                                modifier = Modifier
+                                    .padding(4.dp)
+                                    .size(40.dp)
+                                    .clip(CircleShape)
+                                    .background(
+                                        if (isLoading) MaterialTheme.colorScheme.errorContainer
+                                        else if (chatInput.isNotBlank() || selectedImageUris.isNotEmpty() || selectedFileUris.isNotEmpty()) MaterialTheme.colorScheme.primary
+                                        else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+                                    )
+                            ) {
+                                Icon(
+                                    imageVector = if (isLoading) Icons.Default.Close else Icons.AutoMirrored.Filled.Send,
+                                    contentDescription = if (isLoading) "Stop" else "Send",
+                                    tint = if (isLoading) MaterialTheme.colorScheme.onErrorContainer
+                                    else if (chatInput.isNotBlank() || selectedImageUris.isNotEmpty() || selectedFileUris.isNotEmpty()) MaterialTheme.colorScheme.onPrimary
+                                    else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
                         }
-                    }
                     }
                 }
             }
@@ -807,7 +807,7 @@ private fun AnnotatedString.Builder.appendInlineMarkdown(value: String) {
 
 private fun isImageUrl(url: String): Boolean =
     url.startsWith("content://") ||
-        Regex("\\.(png|jpe?g|gif|webp|heic)(\\?|%|$)", RegexOption.IGNORE_CASE).containsMatchIn(url)
+            Regex("\\.(png|jpe?g|gif|webp|heic)(\\?|%|$)", RegexOption.IGNORE_CASE).containsMatchIn(url)
 
 @Composable
 private fun CodeWebView(
@@ -984,57 +984,57 @@ private fun CodeWebView(
                 modifier = Modifier.fillMaxSize(),
                 factory = { ctx ->
                     WebView(ctx).apply {
-                setBackgroundColor(android.graphics.Color.TRANSPARENT)
-                settings.apply {
-                    javaScriptEnabled = true
-                    domStorageEnabled = true
-                    allowFileAccess = true
-                }
-
-                // JavaScript 인터페이스 추가
-                addJavascriptInterface(object {
-                    @android.webkit.JavascriptInterface
-                    fun onDiagramRendered(token: Int, newHeight: Int) {
-                        android.os.Handler(android.os.Looper.getMainLooper()).post {
-                            if (token == activeRenderToken.value) {
-                                val newDpHeight = newHeight.dp + 12.dp
-                                height.value = newDpHeight.coerceAtLeast(50.dp)
-                            }
+                        setBackgroundColor(android.graphics.Color.TRANSPARENT)
+                        settings.apply {
+                            javaScriptEnabled = true
+                            domStorageEnabled = true
+                            allowFileAccess = true
                         }
-                    }
 
-                    @android.webkit.JavascriptInterface
-                    fun onCodeRendered(token: Int, newHeight: Int) {
-                        android.os.Handler(android.os.Looper.getMainLooper()).post {
-                            if (token == activeRenderToken.value) {
-                                val newDpHeight = newHeight.dp * 1.035f
-                                val measuredHeight = newDpHeight.coerceAtLeast(50.dp)
-                                height.value = if (renderKey == 0) {
-                                    maxOf(height.value, measuredHeight)
-                                } else {
-                                    measuredHeight
+                        // JavaScript 인터페이스 추가
+                        addJavascriptInterface(object {
+                            @android.webkit.JavascriptInterface
+                            fun onDiagramRendered(token: Int, newHeight: Int) {
+                                android.os.Handler(android.os.Looper.getMainLooper()).post {
+                                    if (token == activeRenderToken.value) {
+                                        val newDpHeight = newHeight.dp + 12.dp
+                                        height.value = newDpHeight.coerceAtLeast(50.dp)
+                                    }
                                 }
                             }
-                        }
-                    }
 
-                    @android.webkit.JavascriptInterface
-                    fun onMermaidError(token: Int, message: String) {
-                        android.os.Handler(android.os.Looper.getMainLooper()).post {
-                            if (token == activeRenderToken.value) {
-                                mermaidError = message.takeIf { it.isNotBlank() }
+                            @android.webkit.JavascriptInterface
+                            fun onCodeRendered(token: Int, newHeight: Int) {
+                                android.os.Handler(android.os.Looper.getMainLooper()).post {
+                                    if (token == activeRenderToken.value) {
+                                        val newDpHeight = newHeight.dp * 1.035f
+                                        val measuredHeight = newDpHeight.coerceAtLeast(50.dp)
+                                        height.value = if (renderKey == 0) {
+                                            maxOf(height.value, measuredHeight)
+                                        } else {
+                                            measuredHeight
+                                        }
+                                    }
+                                }
+                            }
+
+                            @android.webkit.JavascriptInterface
+                            fun onMermaidError(token: Int, message: String) {
+                                android.os.Handler(android.os.Looper.getMainLooper()).post {
+                                    if (token == activeRenderToken.value) {
+                                        mermaidError = message.takeIf { it.isNotBlank() }
+                                    }
+                                }
+                            }
+                        }, "Android")
+
+                        webViewClient = object : WebViewClient() {
+                            @SuppressLint("ClickableViewAccessibility")
+                            override fun onPageFinished(view: WebView?, url: String?) {
+                                super.onPageFinished(view, url)
+                                view?.setOnTouchListener { _, _ -> true }
                             }
                         }
-                    }
-                }, "Android")
-
-                webViewClient = object : WebViewClient() {
-                    @SuppressLint("ClickableViewAccessibility")
-                    override fun onPageFinished(view: WebView?, url: String?) {
-                        super.onPageFinished(view, url)
-                        view?.setOnTouchListener { _, _ -> true }
-                    }
-                }
                     }
                 },
                 update = { webView ->
@@ -1341,11 +1341,11 @@ fun LegacyAiChatMarkdownView(
                     useWideViewPort = false
                     loadWithOverviewMode = true
                 }
-                
+
                 setBackgroundColor(0)
                 isVerticalScrollBarEnabled = false
                 isHorizontalScrollBarEnabled = false
-                
+
                 addJavascriptInterface(object {
                     @android.webkit.JavascriptInterface
                     fun updateHeight(height: Float) {
@@ -1376,7 +1376,7 @@ fun ChatBubble(
     onAskGemini: (String) -> Unit = {}
 ) {
     val isUser = message.role == ChatMessageEntity.ROLE_USER
-    
+
     // ChatGPT-like color palette
     val darkTheme = isSystemInDarkTheme()
     val bubbleColor = when {
@@ -1507,19 +1507,19 @@ fun MessageDetailDialog(
                 DetailRow("Provider", message.provider ?: "Firebase")
                 DetailRow("Model", message.modelName ?: "Unknown")
                 HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp))
-                
+
                 DetailRow("Response Time", Utils.formatDurationMs(message.responseTimeMs ?: 0))
                 DetailRow("Prompt Tokens", String.format(Locale.getDefault(), "%,d", message.promptTokens ?: 0))
                 DetailRow("Candidates Tokens", String.format(Locale.getDefault(), "%,d", message.candidatesTokens ?: 0))
                 DetailRow("Total Tokens", String.format(Locale.getDefault(), "%,d", message.totalTokens ?: 0))
                 DetailRow("Estimated Cost", Utils.formatCost(message.estimatedCostKrw ?: 0.0))
-                
+
                 HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp))
-                
+
                 DetailRow("Device", message.deviceModel ?: Utils.getDeviceModel())
                 DetailRow("OS", message.osVersion ?: Utils.getOsVersion())
                 DetailRow("Auth", message.appCheckStatus ?: "Verified")
-                
+
                 val dateStr = SimpleDateFormat("yyyy-MM-dd", Locale.KOREA).format(Date(message.timestamp))
                 val timeStr = SimpleDateFormat("HH:mm:ss", Locale.KOREA).format(Date(message.timestamp))
                 DetailRow("Date", dateStr)

@@ -1,6 +1,7 @@
 package com.codewithfk.expensetracker.android.ai.core
 
 import com.codewithfk.expensetracker.android.ai.core.model.AiAnalysisReport
+import com.codewithfk.expensetracker.android.ai.core.model.AiMasterRouterResponse
 import com.codewithfk.expensetracker.android.data.model.ChatMessageEntity
 import com.codewithfk.expensetracker.android.data.model.ExpenseEntity
 import kotlinx.coroutines.flow.Flow
@@ -16,6 +17,15 @@ data class AiAnalysisResultData(
     val agentVersion: String = FirebaseAiGateway.agentVersion,
     val provider: String = FirebaseAiGateway.provider,
     val rawResponseJson: String = ""
+)
+
+data class AiMasterRouterResultData(
+    val response: AiMasterRouterResponse,
+    val responseTimeMs: Long,
+    val promptTokens: Int? = null,
+    val candidatesTokens: Int? = null,
+    val totalTokens: Int? = null,
+    val modelName: String = FirebaseAiGateway.smartModelName
 )
 
 data class AiImageAttachment(
@@ -35,6 +45,12 @@ interface AiGateway {
      * Example: "오늘 식비로 15000원 썼어" -> ExpenseEntity(title="식비", amount=15000.0, ...)
      */
     suspend fun parseExpense(input: String, isIncome: Boolean): Result<ExpenseEntity>
+
+    /**
+     * Determines the user's intent from natural language input.
+     * This is the 'Master Router' that classifies input into categories like DATA_RETRIEVAL, DATA_ANALYSIS, etc.
+     */
+    suspend fun routeIntent(input: String, modelName: String? = null): Result<AiMasterRouterResultData>
 
     /**
      * Analyzes a list of expenses to provide insights and saving tips.
