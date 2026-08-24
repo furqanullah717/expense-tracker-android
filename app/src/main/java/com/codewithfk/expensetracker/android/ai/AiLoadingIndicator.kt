@@ -20,7 +20,7 @@ import androidx.compose.ui.res.painterResource
 import com.codewithfk.expensetracker.android.R
 
 @Composable
-fun AiLoadingIndicator(modifier: Modifier = Modifier) {
+fun AiLoadingIndicator(isClockwiseRotation: Boolean = false, modifier: Modifier = Modifier) {
     val infiniteTransition = rememberInfiniteTransition(label = "GeminiLoading")
 
     // 부드럽게 커졌다가 작아지는 펄스 애니메이션
@@ -34,10 +34,11 @@ fun AiLoadingIndicator(modifier: Modifier = Modifier) {
         label = "Pulse"
     )
 
+    val targetValue = if (isClockwiseRotation) 360f else -360f
     // 은은하게 회전하는 애니메이션 (선택 사항, 필요 없으면 제거 가능)
     val rotation by infiniteTransition.animateFloat(
         initialValue = 0f,
-        targetValue = -360f,
+        targetValue = targetValue,
         animationSpec = infiniteRepeatable(
             animation = tween(3000, easing = LinearEasing)
         ),

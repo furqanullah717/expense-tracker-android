@@ -24,6 +24,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.painterResource
@@ -43,6 +44,7 @@ import coil.compose.AsyncImage
 import com.codewithfk.expensetracker.android.ai.AiLoadingIndicator
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import androidx.compose.foundation.clickable
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.style.TextDecoration
@@ -60,6 +62,7 @@ import java.util.Date
 import java.util.Locale
 
 private object AgentPalette {
+    val geminiOriginalIconTint = Color.Unspecified // Gemini original color icon tint
     val lightChatBackgroundColor = Color(0xFFF5F7FA) // `Scaffold` 전체 채팅 화면의 라이트 모드 쿨그레이 배경
     val darkChatBackgroundColor = Color(0xFF0F172A) // `Scaffold` 전체 채팅 화면의 다크 모드 딥 네이비 배경
     val lightUserMessageBubbleColor = Color(0xFFD9F2F0) // `ChatBubble` 사용자가 보낸 메시지의 라이트 모드 민트 버블
@@ -84,7 +87,6 @@ private object AgentPalette {
     const val codeBackgroundHex = "#C7CDD4" // 코드/Mermaid HTML의 라이트 배경
     const val codeDarkBackgroundHex = "#1E1E1E" // 코드/Mermaid HTML의 다크 배경
     const val mermaidErrorHex = "#FF5252" // Mermaid 렌더링 오류 문구
-    val uncoloredIconTint = Color.Unspecified // 원본 아이콘 색상을 유지하는 아이콘 틴트
     val attachmentRemoveIconColor = Color.White // 첨부 이미지 제거 버튼 아이콘
 }
 
@@ -263,21 +265,28 @@ fun AgentScreen(
                         Box {
                             IconButton(onClick = { showModelSelector = true }) {
                                 Icon(
-                                    painter = painterResource(
-                                        id = if (selectedModel.contains("pro")) 
-                                            com.codewithfk.expensetracker.android.R.drawable.ic_gemini_color 
-                                        else 
-                                            com.codewithfk.expensetracker.android.R.drawable.ic_gemini_color
-                                    ),
+                                    painter = painterResource(id = com.codewithfk.expensetracker.android.R.drawable.ic_gemini_color),
                                     contentDescription = "Select Model",
-                                    modifier = Modifier.size(24.dp),
-                                    tint = if (selectedModel.contains("pro")) AgentPalette.uncoloredIconTint else AgentPalette.metadataTextColor
+                                    modifier = Modifier
+                                        .size(24.dp)
+                                        .alpha(if (selectedModel.contains("pro") || selectedModel.contains("lite")) 1f else 0.75f),
+                                    tint = if (selectedModel.contains("lite"))
+                                        AgentPalette.metadataTextColor
+                                    else AgentPalette.geminiOriginalIconTint
                                 )
                             }
                             DropdownMenu(
                                 expanded = showModelSelector,
                                 onDismissRequest = { showModelSelector = false }
                             ) {
+                                // ========== 1. 모델 선택 섹션 ==========
+                                Text(
+                                    text = "🤖 모델 선택",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                                )
+
                                 listOf(
                                     "gemini-2.5-flash-lite" to "Flash Lite (Fast)",
                                     "gemini-2.5-flash" to "Flash (Balanced)",
@@ -297,39 +306,17 @@ fun AgentScreen(
                                         }
                                     )
                                 }
-                            }
-                        }
+                                // ========== 구분선 ==========
+                                Divider(modifier = Modifier.padding(vertical = 4.dp))
 
-                        // 히스토리 리밋 선택 버튼 (한번에 보낼 메시지 개수)
-                        Box {
-                            IconButton(onClick = { showHistoryLimitSelector = true }) {
-                                BadgedBox(
-                                    badge = {
-                                        Badge(
-                                            containerColor = MaterialTheme.colorScheme.tertiaryContainer,
-                                            contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
-                                            modifier = Modifier.offset(x = (-2).dp, y = 2.dp)
-                                        ) {
-                                            Text(
-                                                text = if (selectedHistoryLimit <= 0) "All" else selectedHistoryLimit.toString(),
-                                                fontSize = 9.sp,
-                                                fontWeight = FontWeight.Bold,
-                                                modifier = Modifier.padding(horizontal = 2.dp)
-                                            )
-                                        }
-                                    }
-                                ) {
-                                    Icon(
-                                        Icons.Default.Info,
-                                        contentDescription = "History Limit",
-                                        modifier = Modifier.size(22.dp)
-                                    )
-                                }
-                            }
-                            DropdownMenu(
-                                expanded = showHistoryLimitSelector,
-                                onDismissRequest = { showHistoryLimitSelector = false }
-                            ) {
+                                // ========== 2. 대화 길이 선택 섹션 ==========
+                                Text(
+                                    text = "📏 전송할 대화 길이",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                                )
+
                                 listOf(
                                     20 to "20개 (Economy)",
                                     50 to "50개 (Balanced)",
@@ -339,7 +326,7 @@ fun AgentScreen(
                                         text = { Text(label) },
                                         onClick = {
                                             viewModel.setHistoryLimit(limit)
-                                            showHistoryLimitSelector = false
+                                            showModelSelector = false
                                         },
                                         leadingIcon = {
                                             RadioButton(
@@ -374,7 +361,7 @@ fun AgentScreen(
                                 painter = painterResource(id = com.codewithfk.expensetracker.android.R.drawable.ic_gemini_color),
                                 contentDescription = null,
                                 modifier = Modifier.size(64.dp),
-                                tint = AgentPalette.uncoloredIconTint
+                                tint = AgentPalette.geminiOriginalIconTint
                             )
                             Spacer(Modifier.height(16.dp))
                             Text("무엇을 도와드릴까요?", style = MaterialTheme.typography.headlineSmall)
@@ -386,7 +373,8 @@ fun AgentScreen(
                         state = listState,
                         modifier = Modifier
                             .weight(1f)
-                            .fillMaxWidth(),
+                            .fillMaxWidth()
+                            .imePadding(),
                         contentPadding = PaddingValues(16.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
@@ -399,7 +387,9 @@ fun AgentScreen(
                                     onImageClick = { previewImageUrl = it },
                                     onAskGemini = { errorMessage ->
                                         viewModel.sendMessage(
-                                            "다음 Mermaid 오류의 원인을 분석하고 수정된 Mermaid 코드를 알려줘:\n\n$errorMessage"
+                                            "오류가 발생한 Mermaid 코드를 오류가 안나게 수정해서 다시 보내줘:" +
+                                                    "\n\n" +
+                                                    errorMessage
                                         )
                                     }
                                 )
@@ -411,7 +401,7 @@ fun AgentScreen(
                                     modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
                                     contentAlignment = Alignment.CenterStart
                                 ) {
-                                    AiLoadingIndicator(modifier = Modifier.size(32.dp))
+                                    AiLoadingIndicator(isClockwiseRotation = true ,modifier = Modifier.size(32.dp))
                                 }
                             }
                         }
@@ -835,7 +825,8 @@ private fun CodeWebView(
     val errorColorHex = AgentPalette.mermaidErrorHex
     val renderToken = listOf(code, mermaid, dark, renderKey).hashCode()
     val activeRenderToken = rememberUpdatedState(renderToken)
-    var mermaidError by remember(code, mermaid) { mutableStateOf<String?>(null) }
+    // 스트리밍 중 코드 뷰에서 Mermaid 뷰로 전환돼도 오류 메시지를 유지한다.
+    var mermaidError by remember(code) { mutableStateOf<String?>(null) }
     var showMermaidErrorDialog by remember { mutableStateOf(false) }
     val height = remember {
         mutableStateOf(
@@ -902,7 +893,7 @@ private fun CodeWebView(
                         try {
                             const { svg } = await mermaid.render('mermaid-diagram', mermaidCode);
                             document.getElementById('diagram').innerHTML = svg;
-                            if (window.Android) window.Android.onMermaidError('');
+                            if (window.Android) window.Android.onMermaidError($renderToken, '');
                             
                             if (window.Android) {
                                 const reportHeight = () => {
@@ -921,7 +912,7 @@ private fun CodeWebView(
                             }
                         } catch (error) {
                             console.error('Mermaid error:', error);
-                            if (window.Android) window.Android.onMermaidError(String(error?.message || error));
+                            if (window.Android) window.Android.onMermaidError($renderToken, String(error?.message || error));
                             document.getElementById('diagram').innerHTML = 
                                 '<div class="error">Mermaid Error: ' + error.message + '</div>';
                         }
@@ -985,13 +976,14 @@ private fun CodeWebView(
         modifier = Modifier
             .fillMaxWidth()
             .height(height.value)
-            .clip(RoundedCornerShape(8.dp))
+            .clip(RoundedCornerShape(20.dp))
             .background(backgroundColor)
     ) {
-        AndroidView(
-            modifier = Modifier.fillMaxSize(),
-        factory = { ctx ->
-            WebView(ctx).apply {
+        key(mermaid, renderKey) {
+            AndroidView(
+                modifier = Modifier.fillMaxSize(),
+                factory = { ctx ->
+                    WebView(ctx).apply {
                 setBackgroundColor(android.graphics.Color.TRANSPARENT)
                 settings.apply {
                     javaScriptEnabled = true
@@ -1006,7 +998,7 @@ private fun CodeWebView(
                         android.os.Handler(android.os.Looper.getMainLooper()).post {
                             if (token == activeRenderToken.value) {
                                 val newDpHeight = newHeight.dp + 12.dp
-                                height.value = maxOf(height.value, newDpHeight.coerceAtLeast(50.dp))
+                                height.value = newDpHeight.coerceAtLeast(50.dp)
                             }
                         }
                     }
@@ -1016,15 +1008,22 @@ private fun CodeWebView(
                         android.os.Handler(android.os.Looper.getMainLooper()).post {
                             if (token == activeRenderToken.value) {
                                 val newDpHeight = newHeight.dp * 1.035f
-                                height.value = maxOf(height.value, newDpHeight.coerceAtLeast(50.dp))
+                                val measuredHeight = newDpHeight.coerceAtLeast(50.dp)
+                                height.value = if (renderKey == 0) {
+                                    maxOf(height.value, measuredHeight)
+                                } else {
+                                    measuredHeight
+                                }
                             }
                         }
                     }
 
                     @android.webkit.JavascriptInterface
-                    fun onMermaidError(message: String) {
+                    fun onMermaidError(token: Int, message: String) {
                         android.os.Handler(android.os.Looper.getMainLooper()).post {
-                            mermaidError = message.takeIf { it.isNotBlank() }
+                            if (token == activeRenderToken.value) {
+                                mermaidError = message.takeIf { it.isNotBlank() }
+                            }
                         }
                     }
                 }, "Android")
@@ -1036,45 +1035,49 @@ private fun CodeWebView(
                         view?.setOnTouchListener { _, _ -> true }
                     }
                 }
-            }
-        },
-            update = { webView ->
-                if (webView.tag != html) {
-                    webView.loadDataWithBaseURL(
-                        "https://cdn.jsdelivr.net",
-                        html,
-                        "text/html",
-                        "UTF-8",
-                        null
-                    )
-                    webView.tag = html
+                    }
+                },
+                update = { webView ->
+                    if (webView.tag != html) {
+                        webView.loadDataWithBaseURL(
+                            "https://cdn.jsdelivr.net",
+                            html,
+                            "text/html",
+                            "UTF-8",
+                            null
+                        )
+                        webView.tag = html
+                    }
                 }
-            }
-        )
+            )
+        }
         Surface(
             modifier = Modifier
                 .align(Alignment.TopEnd)
                 .padding(4.dp),
-            shape = RoundedCornerShape(6.dp),
+            shape = RoundedCornerShape(16.dp),
             color = Color.Transparent
         ) {
             Row {
-                IconButton(
-                    onClick = {
-                        val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
-                        clipboard.setPrimaryClip(android.content.ClipData.newPlainText("code", code))
-                    },
-                    modifier = Modifier.size(32.dp),
-                ) {
-                    Icon(Icons.Default.Favorite, contentDescription = "Copy", modifier = Modifier.size(16.dp))
-                }
+                Text(
+                    text = "\uD83D\uDD17",  // 복사 아이콘
+                    modifier = Modifier
+                        .clickable {
+                            val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                            clipboard.setPrimaryClip(android.content.ClipData.newPlainText("code", code))
+                        }
+                        .padding(8.dp),
+                    fontSize = 16.sp
+                )
+
                 if (mermaid && mermaidError != null) {
-                    IconButton(
-                        onClick = { showMermaidErrorDialog = true },
-                        modifier = Modifier.size(32.dp)
-                    ) {
-                        Icon(Icons.Default.Info, contentDescription = "Mermaid 오류 메시지 복사", modifier = Modifier.size(16.dp))
-                    }
+                    Text(
+                        text = "\uD83D\uDCE2",  // 에러 디테일 창 아이콘
+                        modifier = Modifier
+                            .clickable { showMermaidErrorDialog = true }
+                            .padding(8.dp),
+                        fontSize = 16.sp
+                    )
                 }
             }
         }
@@ -1086,7 +1089,16 @@ private fun CodeWebView(
             title = { Text("Mermaid 오류") },
             text = {
                 SelectionContainer {
-                    Text(errorMessage)
+                    Column {
+                        Text(errorMessage)
+                        HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp))
+                        Text(
+                            text = code,
+                            style = MaterialTheme.typography.bodySmall.copy(
+                                fontFamily = FontFamily.Monospace
+                            )
+                        )
+                    }
                 }
             },
             confirmButton = {
@@ -1097,7 +1109,9 @@ private fun CodeWebView(
                     TextButton(
                         onClick = {
                             showMermaidErrorDialog = false
-                            onAskGemini(errorMessage)
+                            onAskGemini(
+                                "$errorMessage\n\n오류가 발생한 Mermaid 원본 코드:\n```mermaid\n$code\n```"
+                            )
                         }
                     ) {
                         Text("Gemini에게 물어보기")

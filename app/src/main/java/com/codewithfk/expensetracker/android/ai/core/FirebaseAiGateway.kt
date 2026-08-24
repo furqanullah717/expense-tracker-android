@@ -225,15 +225,20 @@ class FirebaseAiGateway @Inject constructor() : AiGateway {
 
         try {
             var lastResponse: com.google.firebase.vertexai.type.GenerateContentResponse? = null
+            val rawResponse = StringBuilder()
             val prompt = content {
                 images.forEach { inlineData(it.bytes, it.mimeType) }
                 files.forEach { inlineData(it.bytes, it.mimeType) }
                 text(fullLastMessage)
             }
             chat.sendMessageStream(prompt).collect { chunk ->
-                chunk.text?.let { emit(ChatResponse.Chunk(it)) }
+                chunk.text?.let {
+                    rawResponse.append(it)
+                    emit(ChatResponse.Chunk(it))
+                }
                 lastResponse = chunk
             }
+            Log.d(TAG, "chatStream: [RAW GEMINI RESPONSE]\n$rawResponse")
             
             val durationMs = (System.nanoTime() - startTime) / 1_000_000
             val usage = lastResponse?.usageMetadata

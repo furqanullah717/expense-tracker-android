@@ -96,7 +96,7 @@ fun NavHostScreen() {
                 AnalyticsScreen(navController)
             }
             composable(route = "/agent") {
-                bottomBarVisibility = true
+                bottomBarVisibility = false
                 AgentScreen()
             }
             composable(route = "/ai_history") {
