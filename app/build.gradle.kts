@@ -69,6 +69,7 @@ dependencies {
     implementation(libs.firebase.vertexai)
     implementation(libs.firebase.analytics)
     implementation("com.google.firebase:firebase-firestore")
+    implementation("com.google.firebase:firebase-storage")
     implementation("com.google.firebase:firebase-auth")
     implementation("com.google.firebase:firebase-appcheck-playintegrity")
     implementation("com.google.firebase:firebase-appcheck-debug")
@@ -89,6 +90,15 @@ dependencies {
     debugImplementation(libs.androidx.ui.test.manifest)
     implementation(libs.compose.navigation)
     implementation(libs.dagger.hilt.compose)
+    
+    // Markwon for powerful Markdown rendering
+    implementation(libs.markwon.core)
+    implementation(libs.markwon.ext.tables)
+    implementation(libs.markwon.image)
+    implementation(libs.markwon.coil)
+    implementation(libs.coil.compose)
+    implementation(libs.coil.svg)
+    
     implementation("androidx.compose.foundation:foundation:1.7.0-beta07")
     val room_version = "2.6.1"
     implementation("androidx.room:room-runtime:$room_version")
@@ -99,4 +109,8 @@ dependencies {
     val nav_version = "2.7.7"
     implementation("androidx.navigation:navigation-compose:$nav_version")
     implementation("com.github.PhilJay:MPAndroidChart:v3.1.0")
+}
+
+configurations.all {
+    exclude(group = "org.jetbrains", module = "annotations-java5")
 }

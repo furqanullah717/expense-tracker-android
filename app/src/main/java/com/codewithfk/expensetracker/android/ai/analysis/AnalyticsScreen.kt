@@ -1,8 +1,11 @@
 @file:OptIn(ExperimentalMaterial3Api::class)
 
-package com.codewithfk.expensetracker.android.feature.stats
+package com.codewithfk.expensetracker.android.ai.analysis
 
+import android.view.LayoutInflater
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
@@ -24,7 +27,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
@@ -33,10 +35,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
@@ -56,7 +55,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.scale
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.platform.LocalContext
@@ -69,7 +67,8 @@ import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.codewithfk.expensetracker.android.R
-import com.codewithfk.expensetracker.android.data.ai.model.AiAnalysisReport
+import com.codewithfk.expensetracker.android.ai.AiLoadingIndicator
+import com.codewithfk.expensetracker.android.ai.core.model.AiAnalysisReport
 import com.codewithfk.expensetracker.android.data.model.AiAnalysisEntity
 import com.codewithfk.expensetracker.android.feature.home.TransactionList
 import com.codewithfk.expensetracker.android.ui.theme.Zinc
@@ -79,11 +78,16 @@ import com.github.mikephil.charting.charts.LineChart
 import com.github.mikephil.charting.components.XAxis
 import com.github.mikephil.charting.components.YAxis
 import com.github.mikephil.charting.data.Entry
+import com.github.mikephil.charting.data.LineData
 import com.github.mikephil.charting.data.LineDataSet
+import com.github.mikephil.charting.formatter.ValueFormatter
+import java.text.SimpleDateFormat
 import java.util.Calendar
+import java.util.Date
+import java.util.Locale
 
 @Composable
-fun StatsScreen(navController: NavController, viewModel: StatsViewModel = hiltViewModel()) {
+fun AnalyticsScreen(navController: NavController, viewModel: AnalyticsViewModel = hiltViewModel()) {
     var showDateRangeDialog by remember { mutableStateOf(false) }
 
     Scaffold(topBar = {
@@ -559,48 +563,11 @@ fun AiAnalysisSection(
 }
 
 @Composable
-fun AiLoadingIndicator(modifier: Modifier = Modifier) {
-    val infiniteTransition = rememberInfiniteTransition(label = "GeminiLoading")
-    
-    // 부드럽게 커졌다가 작아지는 펄스 애니메이션
-    val scale by infiniteTransition.animateFloat(
-        initialValue = 0.8f,
-        targetValue = 1.2f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(800, easing = androidx.compose.animation.core.FastOutSlowInEasing),
-            repeatMode = androidx.compose.animation.core.RepeatMode.Reverse
-        ),
-        label = "Pulse"
-    )
-
-    // 은은하게 회전하는 애니메이션 (선택 사항, 필요 없으면 제거 가능)
-    val rotation by infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = 360f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(3000, easing = LinearEasing)
-        ),
-        label = "Rotation"
-    )
-
-    Box(
-        modifier = modifier.scale(scale),
-        contentAlignment = Alignment.Center
-    ) {
-        Image(
-            painter = painterResource(id = R.drawable.ic_gemini_color),
-            contentDescription = "Gemini Loading",
-            modifier = Modifier.fillMaxSize().rotate(rotation)
-        )
-    }
-}
-
-@Composable
 fun LineChart(entries: List<Entry>) {
     val context = LocalContext.current
     AndroidView(
         factory = {
-            android.view.LayoutInflater.from(context).inflate(R.layout.stats_line_chart, null)
+            LayoutInflater.from(context).inflate(R.layout.stats_line_chart, null)
         }, modifier = Modifier
             .fillMaxWidth()
             .height(250.dp)
@@ -624,14 +591,14 @@ fun LineChart(entries: List<Entry>) {
         }
 
         lineChart.xAxis.valueFormatter =
-            object : com.github.mikephil.charting.formatter.ValueFormatter() {
+            object : ValueFormatter() {
                 override fun getFormattedValue(value: Float): String {
                     // 월별 출력을 위해 포맷 변경 (예: 8월)
-                    val sdf = java.text.SimpleDateFormat("yy년 M월", java.util.Locale.KOREAN)
-                    return sdf.format(java.util.Date(value.toLong()))
+                    val sdf = SimpleDateFormat("yy년 M월", Locale.KOREAN)
+                    return sdf.format(Date(value.toLong()))
                 }
             }
-        lineChart.data = com.github.mikephil.charting.data.LineData(dataSet)
+        lineChart.data = LineData(dataSet)
         lineChart.description.isEnabled = false
         lineChart.legend.isEnabled = false
         lineChart.xAxis.granularity = 2592000000f // 약 30일 (Monthly)

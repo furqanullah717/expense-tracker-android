@@ -2,7 +2,7 @@ package com.codewithfk.expensetracker.android.data.model
 
 import androidx.room.Entity
 import androidx.room.PrimaryKey
-import com.codewithfk.expensetracker.android.data.ai.firebase.FirebaseAiGateway
+import com.codewithfk.expensetracker.android.ai.core.FirebaseAiGateway
 
 @Entity(tableName = "ai_analysis_history")
 data class AiAnalysisEntity(

@@ -5,7 +5,7 @@ import com.codewithfk.expensetracker.android.base.AddExpenseNavigationEvent
 import com.codewithfk.expensetracker.android.base.BaseViewModel
 import com.codewithfk.expensetracker.android.base.NavigationEvent
 import com.codewithfk.expensetracker.android.base.UiEvent
-import com.codewithfk.expensetracker.android.data.ai.AiGateway
+import com.codewithfk.expensetracker.android.ai.core.AiGateway
 import com.codewithfk.expensetracker.android.data.dao.ExpenseDao
 import com.codewithfk.expensetracker.android.data.model.ExpenseEntity
 import dagger.hilt.android.lifecycle.HiltViewModel

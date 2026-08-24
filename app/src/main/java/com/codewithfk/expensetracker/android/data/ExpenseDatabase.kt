@@ -6,19 +6,23 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
+import com.codewithfk.expensetracker.android.ai.chat_agent.data.ChatSessionEntity
 import com.codewithfk.expensetracker.android.data.dao.AiAnalysisDao
+import com.codewithfk.expensetracker.android.data.dao.ChatDao
 import com.codewithfk.expensetracker.android.data.dao.ExpenseDao
 import com.codewithfk.expensetracker.android.data.model.AiAnalysisEntity
+import com.codewithfk.expensetracker.android.data.model.ChatMessageEntity
 import com.codewithfk.expensetracker.android.data.model.ExpenseEntity
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Singleton
 
-@Database(entities = [ExpenseEntity::class, AiAnalysisEntity::class], version = 8, exportSchema = false)
+@Database(entities = [ExpenseEntity::class, AiAnalysisEntity::class, ChatMessageEntity::class, ChatSessionEntity::class], version = 13, exportSchema = false)
 @Singleton
 abstract class ExpenseDatabase : RoomDatabase() {
 
     abstract fun expenseDao(): ExpenseDao
     abstract fun aiAnalysisDao(): AiAnalysisDao
+    abstract fun chatDao(): ChatDao
 
     companion object {
         const val DATABASE_NAME = "expense_database"

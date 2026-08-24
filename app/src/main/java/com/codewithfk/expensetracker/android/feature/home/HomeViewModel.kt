@@ -4,7 +4,7 @@ import androidx.lifecycle.viewModelScope
 import com.codewithfk.expensetracker.android.base.BaseViewModel
 import com.codewithfk.expensetracker.android.base.HomeNavigationEvent
 import com.codewithfk.expensetracker.android.base.UiEvent
-import com.codewithfk.expensetracker.android.data.FakeDataGenerator
+import com.codewithfk.expensetracker.android.utils.FakeDataGenerator
 import com.codewithfk.expensetracker.android.data.dao.ExpenseDao
 import com.codewithfk.expensetracker.android.data.model.ExpenseEntity
 import com.codewithfk.expensetracker.android.utils.Utils

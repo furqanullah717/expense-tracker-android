@@ -1,7 +1,7 @@
 package com.codewithfk.expensetracker.android.data.repository
 
 import android.util.Log
-import com.codewithfk.expensetracker.android.data.ai.firebase.FirebaseAiGateway
+import com.codewithfk.expensetracker.android.ai.core.FirebaseAiGateway
 import com.codewithfk.expensetracker.android.data.dao.AiAnalysisDao
 import com.codewithfk.expensetracker.android.data.model.AiAnalysisEntity
 import com.google.firebase.Firebase

@@ -7,5 +7,6 @@ object NavRouts {
     const val home="home"
     const val addscreen="AddScreen"
     const val profile="profile"
-    const val stats="stats"
+    const val analytics="analytics"
+    const val agent="agent"
 }

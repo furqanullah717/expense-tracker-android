@@ -1,4 +1,4 @@
-package com.codewithfk.expensetracker.android.feature.stats
+package com.codewithfk.expensetracker.android.ai.analysis
 
 import android.content.ContentValues
 import android.content.Context
@@ -12,6 +12,7 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -84,7 +85,7 @@ import java.io.File
 @Composable
 fun AiHistoryScreen(
     navController: NavController,
-    viewModel: StatsViewModel = hiltViewModel()
+    viewModel: AnalyticsViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
     val historyList by viewModel.aiHistoryList.collectAsState()
@@ -291,12 +292,13 @@ fun AiHistoryCard(
     var isReportExpanded by remember { mutableStateOf(false) }
     var isPromptExpanded by remember { mutableStateOf(false) }
     var isRawJsonExpanded by remember { mutableStateOf(false) }
+    val isDarkTheme = isSystemInDarkTheme()
 
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
-            containerColor = Color.White
+            containerColor = MaterialTheme.colorScheme.surface
         ),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
@@ -364,8 +366,8 @@ fun AiHistoryCard(
                 } else {
                     InfoBadge(
                         text = "☁️ 클라우드 저장됨",
-                        bgColor = Color(0xFFE3F2FD),
-                        textColor = Color(0xFF1976D2)
+                        bgColor = if (isDarkTheme) Color(0xFF0D47A1) else Color(0xFFE3F2FD),
+                        textColor = if (isDarkTheme) Color(0xFFBBDEFB) else Color(0xFF1976D2)
                     )
                 }
                 
@@ -379,8 +381,8 @@ fun AiHistoryCard(
                 if (item.estimatedCostKrw > 0) {
                     InfoBadge(
                         text = "💵 예상비용: ${Utils.formatCost(item.estimatedCostKrw)}",
-                        bgColor = Color(0xFFE8F5E9),
-                        textColor = Color(0xFF2E7D32)
+                        bgColor = if (isDarkTheme) Color(0xFF1B5E20) else Color(0xFFE8F5E9),
+                        textColor = if (isDarkTheme) Color(0xFFC8E6C9) else Color(0xFF2E7D32)
                     )
                 }
                 InfoBadge(text = "🔢 내역: ${item.transactionCount}건")
@@ -581,8 +583,8 @@ fun AiHistoryCard(
 @Composable
 fun InfoBadge(
     text: String,
-    bgColor: Color = Color(0xFFF0F4F4),
-    textColor: Color = Color(0xFF37474F)
+    bgColor: Color = Zinc.copy(alpha = 0.12f),
+    textColor: Color = Zinc
 ) {
     Surface(
         shape = RoundedCornerShape(6.dp),

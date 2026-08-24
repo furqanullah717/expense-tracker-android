@@ -1,16 +1,15 @@
-package com.codewithfk.expensetracker.android.feature.stats
+package com.codewithfk.expensetracker.android.ai.analysis
 
 import android.content.Context
 import android.util.Log
 import androidx.lifecycle.viewModelScope
+import com.codewithfk.expensetracker.android.ai.core.AiGateway
+import com.codewithfk.expensetracker.android.ai.core.model.AiAnalysisReport
 import com.codewithfk.expensetracker.android.base.BaseViewModel
 import com.codewithfk.expensetracker.android.base.UiEvent
-import com.codewithfk.expensetracker.android.data.ai.AiGateway
-import com.codewithfk.expensetracker.android.data.ai.model.AiAnalysisReport
 import com.codewithfk.expensetracker.android.data.dao.AiAnalysisDao
 import com.codewithfk.expensetracker.android.data.dao.ExpenseDao
 import com.codewithfk.expensetracker.android.data.model.AiAnalysisEntity
-import com.codewithfk.expensetracker.android.data.model.ExpenseEntity
 import com.codewithfk.expensetracker.android.data.model.ExpenseSummary
 import com.codewithfk.expensetracker.android.data.repository.AiHistoryRepository
 import com.codewithfk.expensetracker.android.utils.Utils
@@ -23,10 +22,12 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import java.util.Calendar
 import javax.inject.Inject
+import kotlin.collections.iterator
 
 @HiltViewModel
-class StatsViewModel @Inject constructor(
+class AnalyticsViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
     val dao: ExpenseDao,
     private val aiAnalysisDao: AiAnalysisDao,
@@ -71,10 +72,10 @@ class StatsViewModel @Inject constructor(
             viewModelScope.launch {
                 aiAnalysisDao.deleteTemporaryReports()
                 hasCleanedUpTemporaryReports = true
-                Log.d("StatsViewModel", "Temporary reports cleaned up for this session.")
+                Log.d("AnalyticsViewModel", "Temporary reports cleaned up for this session.")
             }
         }
-        
+
         // Sync previously saved AI reports from Firestore so they persist across reinstallations
         viewModelScope.launch {
             aiHistoryRepository.syncFromFirestore()
@@ -106,23 +107,23 @@ class StatsViewModel @Inject constructor(
                 // 1. 지난달 1일 (전월 동기 대비 비교용)
                 // 2. 현재로부터 60일 전 (최근 60일 상세 내역용)
                 // 위 두 날짜 중 더 과거의 날짜를 시작점으로 잡습니다.
-                val calendar = java.util.Calendar.getInstance()
-                
+                val calendar = Calendar.getInstance()
+
                 // 오늘로부터 60일 전
                 calendar.timeInMillis = System.currentTimeMillis()
-                calendar.add(java.util.Calendar.DAY_OF_YEAR, -60)
+                calendar.add(Calendar.DAY_OF_YEAR, -60)
                 val sixtyDaysAgoMillis = calendar.timeInMillis
-                
+
                 // 지난달 1일
                 calendar.timeInMillis = normalizedStart
-                calendar.add(java.util.Calendar.MONTH, -1)
-                calendar.set(java.util.Calendar.DAY_OF_MONTH, 1)
-                calendar.set(java.util.Calendar.HOUR_OF_DAY, 0)
-                calendar.set(java.util.Calendar.MINUTE, 0)
-                calendar.set(java.util.Calendar.SECOND, 0)
-                calendar.set(java.util.Calendar.MILLISECOND, 0)
+                calendar.add(Calendar.MONTH, -1)
+                calendar.set(Calendar.DAY_OF_MONTH, 1)
+                calendar.set(Calendar.HOUR_OF_DAY, 0)
+                calendar.set(Calendar.MINUTE, 0)
+                calendar.set(Calendar.SECOND, 0)
+                calendar.set(Calendar.MILLISECOND, 0)
                 val lastMonthFirstDayMillis = calendar.timeInMillis
-                
+
                 val expandedStartMillis = minOf(sixtyDaysAgoMillis, lastMonthFirstDayMillis)
 
                 val filteredHistory = allExpenses.filter { entity ->
@@ -190,7 +191,7 @@ class StatsViewModel @Inject constructor(
                         createdAt = System.currentTimeMillis()
                     )
 
-                    Log.d("StatsViewModel", "Calling saveReport with shouldSaveToCloud=$shouldSaveToCloud")
+                    Log.d("AnalyticsViewModel", "Calling saveReport with shouldSaveToCloud=$shouldSaveToCloud")
                     val localId = aiHistoryRepository.saveReport(entity, shouldSaveToCloud)
                     _lastSavedEntity.value = entity.copy(id = localId)
                 }.onFailure {
@@ -220,17 +221,17 @@ class StatsViewModel @Inject constructor(
 
     fun getEntriesForChart(entries: List<ExpenseSummary>): List<Entry> {
         val monthlyMap = mutableMapOf<Long, Double>()
-        val calendar = java.util.Calendar.getInstance()
+        val calendar = Calendar.getInstance()
 
         for (entry in entries) {
             val millis = Utils.getMillisFromDate(entry.date)
             calendar.timeInMillis = millis
             // 해당 월의 1일로 설정하여 월별 그룹화
-            calendar.set(java.util.Calendar.DAY_OF_MONTH, 1)
-            calendar.set(java.util.Calendar.HOUR_OF_DAY, 0)
-            calendar.set(java.util.Calendar.MINUTE, 0)
-            calendar.set(java.util.Calendar.SECOND, 0)
-            calendar.set(java.util.Calendar.MILLISECOND, 0)
+            calendar.set(Calendar.DAY_OF_MONTH, 1)
+            calendar.set(Calendar.HOUR_OF_DAY, 0)
+            calendar.set(Calendar.MINUTE, 0)
+            calendar.set(Calendar.SECOND, 0)
+            calendar.set(Calendar.MILLISECOND, 0)
 
             val monthStart = calendar.timeInMillis
             monthlyMap[monthStart] = (monthlyMap[monthStart] ?: 0.0) + entry.total_amount

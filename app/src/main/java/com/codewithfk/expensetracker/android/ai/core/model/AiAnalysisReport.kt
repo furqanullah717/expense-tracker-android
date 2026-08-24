@@ -1,4 +1,4 @@
-package com.codewithfk.expensetracker.android.data.ai.model
+package com.codewithfk.expensetracker.android.ai.core.model
 
 import kotlinx.serialization.InternalSerializationApi
 import kotlinx.serialization.Serializable

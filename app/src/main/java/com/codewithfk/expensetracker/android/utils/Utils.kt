@@ -182,4 +182,28 @@ object Utils {
         "대출 상환", "선물/기부", "여행", "기타 지출"
     )
 
+    /**
+     * AI 답변 중 Mermaid 코드 블록을 감지하여 mermaid.ink 이미지 URL로 변환합니다.
+     */
+    fun processMermaidDiagrams(content: String): String {
+        val mermaidRegex = """```mermaid\s*([\s\S]*?)\s*```""".toRegex()
+        return mermaidRegex.replace(content) { matchResult ->
+            val diagramCode = matchResult.groupValues[1].trim()
+            val encodedCode = try {
+                // Mermaid.ink expects standard Base64 encoding (not URL safe)
+                android.util.Base64.encodeToString(
+                    diagramCode.toByteArray(Charsets.UTF_8),
+                    android.util.Base64.DEFAULT or android.util.Base64.NO_WRAP
+                )
+            } catch (e: Exception) {
+                ""
+            }
+            if (encodedCode.isNotEmpty()) {
+                // Using .svg endpoint for better compatibility with SvgDecoder
+                "\n![Mermaid Diagram](https://mermaid.ink/svg/$encodedCode)\n"
+            } else {
+                matchResult.value
+            }
+        }
+    }
 }

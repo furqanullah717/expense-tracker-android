@@ -18,6 +18,8 @@ firebaseDatabaseKtx = "21.0.0"
 firebase-bom = "33.10.0"
 firebase-vertexai = "16.5.0"
 google-ai-client = "0.9.0"
+markwon = "4.6.2"
+coil = "2.6.0"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -44,6 +46,14 @@ firebase-bom = { group = "com.google.firebase", name = "firebase-bom", version.r
 firebase-vertexai = { group = "com.google.firebase", name = "firebase-vertexai", version.ref = "firebase-vertexai" }
 firebase-analytics = { group = "com.google.firebase", name = "firebase-analytics" }
 google-ai-client = { group = "com.google.ai.client.generativeai", name = "generativeai", version.ref = "google-ai-client" }
+# Markwon libraries
+markwon-core = { module = "io.noties.markwon:core", version.ref = "markwon" }
+markwon-ext-tables = { module = "io.noties.markwon:ext-tables", version.ref = "markwon" }
+markwon-syntax-highlight = { module = "io.noties.markwon:syntax-highlight", version.ref = "markwon" }
+markwon-image = { module = "io.noties.markwon:image", version.ref = "markwon" }
+coil-compose = { module = "io.coil-kt:coil-compose", version.ref = "coil" }
+coil-svg = { module = "io.coil-kt:coil-svg", version.ref = "coil" }
+markwon-coil = { module = "io.noties.markwon:image-coil", version.ref = "markwon" }
 [plugins]
 androidApplication = { id = "com.android.application", version.ref = "agp" }
 jetbrainsKotlinAndroid = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
