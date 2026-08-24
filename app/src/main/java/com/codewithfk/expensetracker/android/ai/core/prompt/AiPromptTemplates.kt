@@ -196,9 +196,12 @@ object AiPromptTemplates {
             $todayDate
             
             ## Intent Categories (High-level classification)
-            1. DATA_RETRIEVAL: Simple search, statistics, or calculations requiring DB lookup. (e.g., "이번 달 식비 얼마야?")
-            2. DATA_ANALYSIS: Deep analysis, cause analysis, budget planning, or advice. (e.g., "식비가 왜 늘었지?")
-            3. DATA_MANIPULATION: Adding, modifying, or deleting data. (e.g., "어제 택시비 추가")
+            1. DATA_RETRIEVAL: Simple search, statistics, or calculations. Use this when the user wants a specific number (sum, max, etc.) or a raw list.
+               - Example: "이번 달 식비 얼마야?", "어제 쓴 내역 다 보여줘", "제일 비싼 지출 뭐야?"
+            2. DATA_ANALYSIS: Deep analysis, trend analysis, cause analysis, budget planning, or financial advice.
+               - CRITICAL: If the user uses words like "analyze (분석)", "why (이유)", "trend (추이)", "compare (비교)", or "advice (조언)", you MUST select this.
+               - Example: "식비가 왜 늘었지?", "최근 3년간 월급 추이를 분석해줘", "어디서 아낄 수 있을까?"
+            3. DATA_MANIPULATION: Adding, modifying, or deleting data.
             4. SIMPLE_RESPONSE: App usage, general knowledge, or small talk.
             5. APP_ACTION: Navigating to specific screens or executing native app features. 
                - ONLY the following actions are allowed: [EXPORT_EXCEL, NAVIGATE_HOME, NAVIGATE_CHARTS, NAVIGATE_TRANSACTIONS].
@@ -236,6 +239,86 @@ object AiPromptTemplates {
             }
 
             User Input: "$input"
+        """.trimIndent()
+    }
+
+    /**
+     * 2-Pass: DATA_RETRIEVAL 용 의미 기반 필터링 및 연산 결정 프롬프트
+     */
+    fun getSecondPassRetrievalPrompt(
+        originalInput: String,
+        uniqueNames: List<String>
+    ): String {
+        return """
+            Identify semantically relevant transaction items and determine the required calculation based on the user's request.
+            
+            Original Input: "$originalInput"
+            Available Names: [${uniqueNames.joinToString(", ")}]
+            
+            ## Instructions
+            1. Select names from "Available Names" that are semantically related to the "Original Input".
+            2. Determine the best mathematical operation:
+               - SUM: Calculate the total amount.
+               - MAX: Find the most expensive item.
+               - MIN: Find the cheapest item.
+               - COUNT: Count the number of transactions.
+               - LIST: Show all relevant transaction details.
+            
+            ## Output JSON Format
+            {
+              "relevant_names": ["matched name 1", "matched name 2"],
+              "operation": "SUM | MAX | MIN | COUNT | LIST",
+              "reasoning": "왜 이 항목들을 선택하고 이 연산을 결정했는지에 대한 논리적 근거 (Korean)"
+            }
+        """.trimIndent()
+    }
+
+    /**
+     * 2-Pass: DATA_MANIPULATION 용 의미 기반 필터링 및 조작 액션 결정 프롬프트
+     */
+    fun getSecondPassManipulationPrompt(
+        originalInput: String,
+        uniqueNames: List<String>
+    ): String {
+        return """
+            Identify the target transaction items and the specific modification action requested by the user.
+            
+            Original Input: "$originalInput"
+            Available Names: [${uniqueNames.joinToString(", ")}]
+            
+            ## Instructions
+            1. Select names from "Available Names" that are the targets of the requested change.
+            2. Determine the manipulation action:
+               - DELETE: Remove the identified items.
+               - UPDATE: Modify existing items.
+               - INSERT: Add a new transaction (If 'Available Names' doesn't contain a direct match but intent is to add).
+            3. If the action is UPDATE, specify which field should be changed: title, amount, category.
+            
+            ## Output JSON Format
+            {
+              "relevant_names": ["matched name 1", "matched name 2"],
+              "action": "INSERT | DELETE | UPDATE",
+              "update_field": "title | amount | category | null",
+              "reasoning": "항목 선택 및 액션 결정의 이유 (Korean)"
+            }
+        """.trimIndent()
+    }
+
+    /**
+     * 2-Pass: DATA_ANALYSIS 용 분석 프롬프트 (간소화 버전)
+     */
+    fun getSecondPassAnalysisPrompt(
+        originalInput: String,
+        rawDataText: String
+    ): String {
+        return """
+            Analyze the following transaction data to answer the user's question.
+            User Question: "$originalInput"
+            
+            Data:
+            $rawDataText
+            
+            Provide a deep analysis and helpful advice in Korean.
         """.trimIndent()
     }
 }

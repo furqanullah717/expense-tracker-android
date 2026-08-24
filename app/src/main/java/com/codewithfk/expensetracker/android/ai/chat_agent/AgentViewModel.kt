@@ -83,6 +83,10 @@ class AgentViewModel @Inject constructor(
     private val _chatInput = MutableStateFlow("")
     val chatInput: StateFlow<String> = _chatInput
 
+    // 사용자 확인이 필요한 펜딩 액션 (데이터 삭제/수정 등)
+    private val _pendingAction = MutableStateFlow<ChatResponse.ActionRequest?>(null)
+    val pendingAction: StateFlow<ChatResponse.ActionRequest?> = _pendingAction
+
     private var chatJob: kotlinx.coroutines.Job? = null
 
     init {
@@ -265,6 +269,9 @@ class AgentViewModel @Inject constructor(
                                 osVersion = Utils.getOsVersion()
                             )
                         }
+                        is ChatResponse.ActionRequest -> {
+                            _pendingAction.value = response
+                        }
                     }
                 }
             } catch (e: kotlinx.coroutines.CancellationException) {
@@ -284,6 +291,47 @@ class AgentViewModel @Inject constructor(
                 chatJob = null
             }
         }
+    }
+
+    fun confirmAction(selectedItems: List<com.codewithfk.expensetracker.android.data.model.ExpenseEntity>) {
+        val actionRequest = _pendingAction.value ?: return
+        viewModelScope.launch {
+            try {
+                when (actionRequest.action) {
+                    "DELETE" -> {
+                        selectedItems.forEach { expenseDao.deleteExpense(it) }
+                        addAssistantMessage("선택한 **${selectedItems.size}건**의 내역을 삭제했습니다.")
+                    }
+                    "UPDATE" -> {
+                        addAssistantMessage("수정 기능은 현재 구현 중입니다.")
+                    }
+                    "INSERT" -> {
+                        selectedItems.forEach { expenseDao.insertExpense(it) }
+                        addAssistantMessage("항목을 추가했습니다.")
+                    }
+                }
+            } catch (e: Exception) {
+                addAssistantMessage("작업 처리 중 오류가 발생했습니다: ${e.message}")
+            } finally {
+                _pendingAction.value = null
+            }
+        }
+    }
+
+    private suspend fun addAssistantMessage(content: String) {
+        val sessionId = _currentSessionId.value ?: return
+        chatRepository.insertMessage(
+            ChatMessageEntity(
+                sessionId = sessionId,
+                content = content,
+                role = ChatMessageEntity.ROLE_ASSISTANT
+            )
+        )
+        chatRepository.updateSessionLastTime(sessionId, System.currentTimeMillis())
+    }
+
+    fun dismissAction() {
+        _pendingAction.value = null
     }
 
     private suspend fun uploadAttachment(uri: Uri): UploadedAttachment {

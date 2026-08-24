@@ -14,3 +14,13 @@ data class AiMasterRouterResponse(
     val reasoning: String,
     val reply_message: String? = null
 )
+
+@OptIn(InternalSerializationApi::class)
+@Serializable
+data class AiSecondPassResponse(
+    val relevant_names: List<String> = emptyList(),
+    val operation: String? = null,
+    val action: String? = null,
+    val update_field: String? = null,
+    val reasoning: String? = null
+)

@@ -229,106 +229,260 @@ class FirebaseAiGateway @Inject constructor() : AiGateway {
         images: List<AiImageAttachment>,
         files: List<AiFileAttachment>
     ): Flow<ChatResponse> = flow {
-        val startTime = System.nanoTime()
-
-        // 1. 마스터 라우터를 통한 인텐트 분류 수행 및 결과 즉시 반환
+        Log.d(TAG, "chatStream: Total History Size: ${history.size}")
         val lastMessage = messages.lastOrNull()?.content ?: ""
-        val routingResultData = routeIntent(lastMessage, modelName).getOrNull()
-
-        // [핵심] 채팅창에 마스터 라우터의 JSON 원본만 표시되도록 함
-        routingResultData?.let { data ->
-            val rawJson = json.encodeToString(AiMasterRouterResponse.serializer(), data.response)
-            emit(ChatResponse.Chunk(rawJson))
-            
-            // 실제 토큰 사용량과 모델명을 메타데이터로 전송
-            emit(ChatResponse.Metadata(
-                promptTokens = data.promptTokens,
-                candidatesTokens = data.candidatesTokens,
-                totalTokens = data.totalTokens,
-                responseTimeMs = data.responseTimeMs,
-                modelName = data.modelName,
-                agentVersion = agentVersion,
-                provider = provider
-            ))
-            return@flow
-        }
-
-        // 2. 사용자의 금융 데이터 요약본 (지출/수입 데이터)
-        val historyText = getSummarizedHistoryParts(history).toFullMarkdown()
-        val todayDate = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Calendar.getInstance().time)
-
-        // 3. 인텐트에 따른 시스템 프롬프트 조정
-        val systemPrompt = if (routingResultData?.response?.intent == "CONTEXT_REFERENCE") {
-            """
-                ${AiPromptTemplates.getChatPrompt(historyText, todayDate)}
-                
-                [SPECIAL INSTRUCTION: CONTEXT_REFERENCE]
-                사용자가 아주 오래전 대화 내용을 언급하거나 참조하고 있습니다. 
-                제공된 대화 기록(Chat History)을 면밀히 분석하여, 사용자가 가리키는 특정 시점이나 질문에 대해 정확하고 일관성 있게 답변하세요.
-            """.trimIndent()
-        } else {
-            AiPromptTemplates.getChatPrompt(historyText, todayDate)
-        }
-
-        // 4. 대화 기록 구성 (기본적으로 바로 직전의 1개 대화 턴을 Context로 포함)
-        val historyToUse = if (messages.size >= 3) {
-            messages.dropLast(1).takeLast(2)
-        } else if (messages.size == 2) {
-            messages.take(1)
-        } else {
-            emptyList()
-        }
-
-        val chatHistory = historyToUse.map { msg ->
-            content(role = if (msg.role == ChatMessageEntity.ROLE_USER) "user" else "model") {
-                text(msg.content)
-            }
-        }
-
-        // 5. 모델 설정 및 채팅 시작
-        val targetModelName = modelName ?: FirebaseAiGateway.modelName
-        val currentChatModel = Firebase.vertexAI.generativeModel(modelName = targetModelName)
-        val chat = currentChatModel.startChat(history = chatHistory)
-
-        // 6. 최종 메시지 구성 (시스템 프롬프트 주입)
-        val fullLastMessage = "$systemPrompt\n\nUser Question: $lastMessage"
         
-        Log.d(TAG, "chatStream: [INPUT TO AI] (Model: $targetModelName, History: ${historyToUse.size}, Intent: ${routingResultData?.response?.intent})\n$fullLastMessage")
+        // 대화 기록 구성 (직전 1개 대화 턴 추출)
+        val historyToUse = if (messages.size >= 3) messages.dropLast(1).takeLast(2)
+        else if (messages.size == 2) messages.take(1)
+        else emptyList()
 
-        try {
-            var lastResponse: com.google.firebase.vertexai.type.GenerateContentResponse? = null
-            val rawResponse = StringBuilder()
-            val prompt = content {
-                images.forEach { inlineData(it.bytes, it.mimeType) }
-                files.forEach { inlineData(it.bytes, it.mimeType) }
-                text(fullLastMessage)
-            }
-            chat.sendMessageStream(prompt).collect { chunk ->
-                chunk.text?.let {
-                    rawResponse.append(it)
-                    emit(ChatResponse.Chunk(it))
-                }
-                lastResponse = chunk
-            }
-            Log.d(TAG, "chatStream: [RAW GEMINI RESPONSE]\n$rawResponse")
-            
-            val durationMs = (System.nanoTime() - startTime) / 1_000_000
-            val usage = lastResponse?.usageMetadata
-            
-            emit(ChatResponse.Metadata(
-                promptTokens = usage?.promptTokenCount,
-                candidatesTokens = usage?.candidatesTokenCount,
-                totalTokens = usage?.totalTokenCount,
-                responseTimeMs = durationMs,
-                modelName = targetModelName,
-                agentVersion = "v1",
-                provider = provider
-            ))
-            
-        } catch (e: Exception) {
-            Log.e(TAG, "chatStream error: ${e.message}", e)
-            emit(ChatResponse.Chunk("에러가 발생했습니다: ${e.message}"))
+        val historyContext = historyToUse.joinToString("\n") { 
+            "${if (it.role == ChatMessageEntity.ROLE_USER) "User" else "Assistant"}: ${it.content}" 
         }
+
+        // 1. 마스터 라우터를 통한 인텐트 분류 수행 (문맥 포함)
+        val routingInput = if (historyContext.isNotBlank()) "Context:\n$historyContext\n\nQuestion: $lastMessage" else lastMessage
+        Log.d(TAG, "chatStream: [1st PASS INPUT]\n$routingInput")
+        
+        val routingResultData = routeIntent(routingInput, modelName).getOrNull() ?: return@flow
+        val routerRes = routingResultData.response
+        Log.d(TAG, "chatStream: [1st PASS RESULT] intent=${routerRes.intent}, start=${routerRes.start_date}, end=${routerRes.end_date}, categories=${routerRes.sub_categories}")
+
+        // 1차 분석 결과 JSON 출력
+        val firstPassJson = json.encodeToString(AiMasterRouterResponse.serializer(), routerRes)
+        emit(ChatResponse.Chunk("### 1st Pass: Intent Routing\n```json\n$firstPassJson\n```\n\n---\n\n"))
+
+        // 2. 인텐트별 2차 패스 로직 분기
+        when (routerRes.intent) {
+            "DATA_RETRIEVAL" -> {
+                val filteredHistory = filterHistory(history, routerRes)
+                val uniqueNames = filteredHistory.map { it.title }.distinct()
+                Log.d(TAG, "chatStream: [DATA_RETRIEVAL] Filtered Items: ${filteredHistory.size}, Unique Names: ${uniqueNames.size}")
+                
+                val startTime2 = System.nanoTime()
+                val secondPassPrompt = AiPromptTemplates.getSecondPassRetrievalPrompt(lastMessage, uniqueNames)
+                Log.d(TAG, "chatStream: [2nd PASS RETRIEVAL PROMPT]\n$secondPassPrompt")
+
+                val secondPassRes = smartModel.generateContent(secondPassPrompt)
+                val durationMs2 = (System.nanoTime() - startTime2) / 1_000_000
+                
+                val secondPassText = secondPassRes.text ?: ""
+                val usage2 = secondPassRes.usageMetadata
+                Log.d(TAG, "chatStream: [2nd PASS RESULT]\n$secondPassText")
+                
+                // [계산 로직 시작]
+                val retrievalResult = try {
+                    json.decodeFromString<com.codewithfk.expensetracker.android.ai.core.model.AiSecondPassResponse>(secondPassText)
+                } catch (e: Exception) { null }
+
+                if (retrievalResult != null) {
+                    val finalItems = filteredHistory.filter { it.title in retrievalResult.relevant_names }
+                    val resultMessage = when (retrievalResult.operation) {
+                        "SUM" -> {
+                            val sum = finalItems.sumOf { it.amount }
+                            "총액은 **${Utils.formatCurrency(sum)}**입니다. (대상 항목: ${retrievalResult.relevant_names.joinToString(", ")})"
+                        }
+                        "MAX" -> {
+                            val maxItem = finalItems.maxByOrNull { it.amount }
+                            "가장 큰 금액은 **${maxItem?.title ?: "없음"}**의 **${Utils.formatCurrency(maxItem?.amount ?: 0.0)}**입니다."
+                        }
+                        "MIN" -> {
+                            val minItem = finalItems.minByOrNull { it.amount }
+                            "가장 작은 금액은 **${minItem?.title ?: "없음"}**의 **${Utils.formatCurrency(minItem?.amount ?: 0.0)}**입니다."
+                        }
+                        "COUNT" -> "해당하는 내역은 총 **${finalItems.size}건**입니다."
+                        "LIST" -> {
+                            val listText = finalItems.joinToString("\n") { "- ${it.date}: ${it.title} (${Utils.formatCurrency(it.amount)})" }
+                            "요청하신 내역 리스트입니다:\n\n$listText"
+                        }
+                        else -> "조건에 맞는 데이터를 찾았지만 연산 종류를 결정하지 못했습니다."
+                    }
+                    emit(ChatResponse.Chunk("$resultMessage\n\n> 💡 **AI 판단 근거:** ${retrievalResult.reasoning}"))
+                } else {
+                    emit(ChatResponse.Chunk("데이터를 분석하는 과정에서 오류가 발생했습니다.\n\nRaw JSON: $secondPassText"))
+                }
+
+                // 1차 + 2차 메타데이터 합산
+                emit(ChatResponse.Metadata(
+                    promptTokens = (routingResultData.promptTokens ?: 0) + (usage2?.promptTokenCount ?: 0),
+                    candidatesTokens = (routingResultData.candidatesTokens ?: 0) + (usage2?.candidatesTokenCount ?: 0),
+                    totalTokens = (routingResultData.totalTokens ?: 0) + (usage2?.totalTokenCount ?: 0),
+                    responseTimeMs = routingResultData.responseTimeMs + durationMs2,
+                    modelName = routingResultData.modelName,
+                    agentVersion = agentVersion,
+                    provider = provider
+                ))
+            }
+
+            "DATA_MANIPULATION" -> {
+                val filteredHistory = filterHistory(history, routerRes)
+                val uniqueNames = filteredHistory.map { it.title }.distinct()
+                Log.d(TAG, "chatStream: [DATA_MANIPULATION] Filtered Items: ${filteredHistory.size}")
+                
+                val startTime2 = System.nanoTime()
+                val secondPassPrompt = AiPromptTemplates.getSecondPassManipulationPrompt(lastMessage, uniqueNames)
+                Log.d(TAG, "chatStream: [2nd PASS MANIPULATION PROMPT]\n$secondPassPrompt")
+
+                val secondPassRes = smartModel.generateContent(secondPassPrompt)
+                val durationMs2 = (System.nanoTime() - startTime2) / 1_000_000
+                
+                val secondPassText = secondPassRes.text ?: ""
+                val usage2 = secondPassRes.usageMetadata
+                Log.d(TAG, "chatStream: [2nd PASS RESULT]\n$secondPassText")
+                
+                // [조작 대상 추출 로직]
+                val manipulationResult = try {
+                    json.decodeFromString<com.codewithfk.expensetracker.android.ai.core.model.AiSecondPassResponse>(secondPassText)
+                } catch (e: Exception) { null }
+
+                if (manipulationResult != null) {
+                    val actionText = when (manipulationResult.action) {
+                        "DELETE" -> "삭제"
+                        "UPDATE" -> "수정 (${manipulationResult.update_field} 변경)"
+                        "INSERT" -> "추가"
+                        else -> "처리"
+                    }
+                    
+                    val targetItems = filteredHistory.filter { it.title in manipulationResult.relevant_names }
+                    val targetListText = targetItems.joinToString("\n") { "- ${it.date}: ${it.title} (${Utils.formatCurrency(it.amount)})" }
+                    
+                    emit(ChatResponse.Chunk("다음 항목들에 대해 **$actionText** 작업을 진행할까요?\n\n$targetListText\n\n> 💡 **이유:** ${manipulationResult.reasoning}"))
+                    
+                    // UI에 컨펌 다이얼로그를 띄우기 위한 액션 요청 전송
+                    emit(ChatResponse.ActionRequest(
+                        intent = routerRes.intent,
+                        action = manipulationResult.action ?: "DELETE",
+                        targetItems = targetItems,
+                        reasoning = manipulationResult.reasoning ?: "",
+                        updateField = manipulationResult.update_field
+                    ))
+                } else {
+                    emit(ChatResponse.Chunk("조작 대상을 분석하는 과정에서 오류가 발생했습니다.\n\nRaw JSON: $secondPassText"))
+                }
+
+                // 1차 + 2차 메타데이터 합산
+                emit(ChatResponse.Metadata(
+                    promptTokens = (routingResultData.promptTokens ?: 0) + (usage2?.promptTokenCount ?: 0),
+                    candidatesTokens = (routingResultData.candidatesTokens ?: 0) + (usage2?.candidatesTokenCount ?: 0),
+                    totalTokens = (routingResultData.totalTokens ?: 0) + (usage2?.totalTokenCount ?: 0),
+                    responseTimeMs = routingResultData.responseTimeMs + durationMs2,
+                    modelName = routingResultData.modelName,
+                    agentVersion = agentVersion,
+                    provider = provider
+                ))
+            }
+            
+            "DATA_ANALYSIS" -> {
+                // 앱 처리: 기간 내 실제 지출 데이터 추출
+                val filteredHistory = filterHistory(history, routerRes)
+                val rawDataText = filteredHistory.joinToString("\n") { 
+                    "${it.date} | ${it.category} | ${it.title} | ${it.amount}원" 
+                }
+                Log.d(TAG, "chatStream: [DATA_ANALYSIS] Filtered Items: ${filteredHistory.size}")
+                
+                val startTime2 = System.nanoTime()
+                val secondPassPrompt = AiPromptTemplates.getSecondPassAnalysisPrompt(lastMessage, rawDataText)
+                Log.d(TAG, "chatStream: [2nd PASS ANALYSIS PROMPT]\n$secondPassPrompt")
+
+                emit(ChatResponse.Chunk("### 2nd Pass: Data Analysis\n"))
+                
+                var lastResponse: com.google.firebase.vertexai.type.GenerateContentResponse? = null
+                chatModel.generateContentStream(secondPassPrompt).collect { chunk ->
+                    chunk.text?.let { emit(ChatResponse.Chunk(it)) }
+                    lastResponse = chunk
+                }
+                
+                val durationMs2 = (System.nanoTime() - startTime2) / 1_000_000
+                val usage2 = lastResponse?.usageMetadata
+                
+                // 1차 + 2차 메타데이터 합산
+                emit(ChatResponse.Metadata(
+                    promptTokens = (routingResultData.promptTokens ?: 0) + (usage2?.promptTokenCount ?: 0),
+                    candidatesTokens = (routingResultData.candidatesTokens ?: 0) + (usage2?.candidatesTokenCount ?: 0),
+                    totalTokens = (routingResultData.totalTokens ?: 0) + (usage2?.totalTokenCount ?: 0),
+                    responseTimeMs = routingResultData.responseTimeMs + durationMs2,
+                    modelName = routingResultData.modelName,
+                    agentVersion = agentVersion,
+                    provider = provider
+                ))
+            }
+            
+            "SIMPLE_RESPONSE", "FALLBACK" -> {
+                val startTime2 = System.nanoTime()
+                var secondPassUsage: com.google.firebase.vertexai.type.UsageMetadata? = null
+                
+                val response = routerRes.reply_message ?: run {
+                    val historyText = getSummarizedHistoryParts(history).toFullMarkdown()
+                    val systemPrompt = AiPromptTemplates.getChatPrompt(historyText, todayDate())
+                    val prompt = "$systemPrompt\n\nUser Question: $lastMessage"
+                    val res = chatModel.generateContent(prompt)
+                    secondPassUsage = res.usageMetadata
+                    res.text ?: "죄송합니다. 이해하지 못했습니다."
+                }
+                
+                val durationMs2 = (System.nanoTime() - startTime2) / 1_000_000
+                emit(ChatResponse.Chunk(response))
+                
+                // 1차 + 2차 메타데이터 합산
+                emit(ChatResponse.Metadata(
+                    promptTokens = (routingResultData.promptTokens ?: 0) + (secondPassUsage?.promptTokenCount ?: 0),
+                    candidatesTokens = (routingResultData.candidatesTokens ?: 0) + (secondPassUsage?.candidatesTokenCount ?: 0),
+                    totalTokens = (routingResultData.totalTokens ?: 0) + (secondPassUsage?.totalTokenCount ?: 0),
+                    responseTimeMs = routingResultData.responseTimeMs + durationMs2,
+                    modelName = routingResultData.modelName,
+                    agentVersion = agentVersion,
+                    provider = provider
+                ))
+            }
+            
+            "APP_ACTION" -> {
+                emit(ChatResponse.Chunk("앱 기능을 실행합니다: ${routerRes.sub_categories.joinToString(", ")}"))
+            }
+
+            "CONTEXT_REFERENCE" -> {
+                emit(ChatResponse.Chunk("이전 대화 맥락을 참조하여 요청을 처리 중입니다..."))
+                // 여기서 필요하다면 1차 routing 결과를 바탕으로 이전 인텐트를 재해석하거나 수정 로직을 돌릴 수 있음
+            }
+            
+            else -> {
+                emit(ChatResponse.Chunk("정의되지 않은 인텐트입니다."))
+            }
+        }
+    }
+
+    private fun todayDate(): String {
+        return SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Calendar.getInstance().time)
+    }
+
+    private fun filterHistory(history: List<ExpenseEntity>, routerRes: AiMasterRouterResponse): List<ExpenseEntity> {
+        val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.US)
+        val historyDateFormat = SimpleDateFormat("dd/MM/yyyy", Locale.US)
+        
+        val start = routerRes.start_date?.let { try { dateFormat.parse(it) } catch(e: Exception) { null } }
+        val end = routerRes.end_date?.let { try { dateFormat.parse(it) } catch(e: Exception) { null } }
+        
+        val filtered = history.filter { item ->
+            val itemDate = try { 
+                historyDateFormat.parse(item.date.trim()) 
+            } catch (e: Exception) { 
+                Log.e(TAG, "filterHistory: Parsing error for item '${item.title}' with date '${item.date}'")
+                null 
+            }
+            
+            val dateMatch = if (start != null && end != null && itemDate != null) {
+                !itemDate.before(start) && !itemDate.after(end)
+            } else true
+            
+            val categoryMatch = if (routerRes.sub_categories.isNotEmpty()) {
+                routerRes.sub_categories.contains(item.category)
+            } else true
+            
+            dateMatch && categoryMatch
+        }
+        
+        Log.d(TAG, "filterHistory: [FILTER] Range: $start ~ $end, Categories: ${routerRes.sub_categories}, Result Count: ${filtered.size}")
+        return filtered
     }
 
     private data class SummarizedContext(

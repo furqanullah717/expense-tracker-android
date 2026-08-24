@@ -86,4 +86,15 @@ sealed class ChatResponse {
         val agentVersion: String,
         val provider: String
     ) : ChatResponse()
+
+    /**
+     * UI에서 사용자 확인이 필요한 액션 요청 (예: 데이터 삭제/수정 컨펌 다이얼로그)
+     */
+    data class ActionRequest(
+        val intent: String,
+        val action: String,
+        val targetItems: List<ExpenseEntity>,
+        val reasoning: String,
+        val updateField: String? = null
+    ) : ChatResponse()
 }

@@ -53,6 +53,8 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.text.ClickableText
 import com.codewithfk.expensetracker.android.data.model.ChatMessageEntity
+import com.codewithfk.expensetracker.android.data.model.ExpenseEntity
+import com.codewithfk.expensetracker.android.ai.core.ChatResponse
 import com.codewithfk.expensetracker.android.utils.Utils
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -122,6 +124,7 @@ fun AgentScreen(
     val chatInput by viewModel.chatInput.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val isStreaming by viewModel.isStreaming.collectAsState()
+    val pendingAction by viewModel.pendingAction.collectAsState()
     val streamingMessageId = messages.lastOrNull { it.role == ChatMessageEntity.ROLE_ASSISTANT }?.id
 
     val listState = rememberLazyListState()
@@ -164,6 +167,7 @@ fun AgentScreen(
 
     ModalNavigationDrawer(
         drawerState = drawerState,
+        gesturesEnabled = true,
         drawerContent = {
             ModalDrawerSheet {
                 Spacer(Modifier.height(12.dp))
@@ -608,6 +612,140 @@ fun AgentScreen(
             }
         )
     }
+
+    // AI 액션 확인 다이얼로그 (데이터 조작용)
+    if (pendingAction != null) {
+        ActionConfirmDialog(
+            request = pendingAction!!,
+            onConfirm = { selectedItems -> viewModel.confirmAction(selectedItems) },
+            onDismiss = { viewModel.dismissAction() }
+        )
+    }
+}
+
+@Composable
+fun ActionConfirmDialog(
+    request: ChatResponse.ActionRequest,
+    onConfirm: (List<ExpenseEntity>) -> Unit,
+    onDismiss: () -> Unit
+) {
+    // 원본 리스트를 최신순으로 정렬(또는 반전)하여 사용
+    val sortedItems = remember(request.targetItems) { request.targetItems.reversed() }
+    val selectedItems = remember { mutableStateListOf<ExpenseEntity>().apply { addAll(request.targetItems) } }
+    
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            val title = when (request.action) {
+                "DELETE" -> "데이터 삭제 확인"
+                "UPDATE" -> "데이터 수정 확인"
+                "INSERT" -> "데이터 추가 확인"
+                else -> "작업 확인"
+            }
+            Text(title, fontWeight = FontWeight.Bold)
+        },
+        text = {
+            Column(modifier = Modifier.fillMaxWidth()) {
+                Text(
+                    text = "AI가 분석한 결과입니다. 아래 항목들에 대해 작업을 진행할까요?",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // 전체 선택/해제 버튼
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    val allSelected = selectedItems.size == request.targetItems.size
+                    TextButton(
+                        onClick = {
+                            if (allSelected) {
+                                selectedItems.clear()
+                            } else {
+                                selectedItems.clear()
+                                selectedItems.addAll(request.targetItems)
+                            }
+                        },
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)
+                    ) {
+                        Text(
+                            if (allSelected) "전체 해제" else "전체 선택",
+                            style = MaterialTheme.typography.labelMedium
+                        )
+                    }
+                }
+                
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 300.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+                ) {
+                    LazyColumn(
+                        modifier = Modifier.padding(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        items(sortedItems) { item ->
+                            val isSelected = selectedItems.contains(item)
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        if (isSelected) selectedItems.remove(item) else selectedItems.add(item)
+                                    }
+                                    .padding(vertical = 4.dp)
+                            ) {
+                                Checkbox(
+                                    checked = isSelected,
+                                    onCheckedChange = { checked ->
+                                        if (checked) selectedItems.add(item) else selectedItems.remove(item)
+                                    }
+                                )
+                                Column {
+                                    Text(item.title, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Medium)
+                                    Text(
+                                        "${item.date} | ${Utils.formatCurrency(item.amount)}", 
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                Spacer(modifier = Modifier.height(12.dp))
+                
+                Text(
+                    text = "💡 이유: ${request.reasoning}",
+                    style = MaterialTheme.typography.labelSmall,
+                    fontStyle = FontStyle.Italic,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = { onConfirm(selectedItems.toList()) },
+                enabled = selectedItems.isNotEmpty() || request.action == "INSERT",
+                colors = if (request.action == "DELETE") ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                         else ButtonDefaults.buttonColors()
+            ) {
+                Text("확인")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("취소")
+            }
+        }
+    )
 }
 @Composable
 fun AiChatMarkdownView(
@@ -828,10 +966,10 @@ private fun CodeWebView(
     // 스트리밍 중 코드 뷰에서 Mermaid 뷰로 전환돼도 오류 메시지를 유지한다.
     var mermaidError by remember(code) { mutableStateOf<String?>(null) }
     var showMermaidErrorDialog by remember { mutableStateOf(false) }
-    val height = remember {
+    val height = remember(code, mermaid) {
         mutableStateOf(
             if (mermaid) 300.dp
-            else (code.lines().size * 20 + 40).coerceIn(60, 400).dp
+            else (code.lines().size * 20 + 27).coerceAtLeast(50).dp   // 코드영역 높이 (보정값 +27)
         )
     }
 
@@ -940,12 +1078,18 @@ private fun CodeWebView(
                         padding: 0px;
                         background: $backgroundHex;
                         overflow-x: auto;
+                        overflow-y: hidden;
                     }
+                    ::-webkit-scrollbar { width: 0; height: 3.5px; }  // 스크롤바 높이
+                    ::-webkit-scrollbar-track { background: transparent; }
+                    ::-webkit-scrollbar-thumb { background: #808890; border-radius: 5px; }
                     pre {
                         margin: 0;
                         padding: 0px;
                         background: $backgroundHex;
                         border-radius: 6px;
+                        overflow-x: auto;
+                        white-space: pre;
                     }
                     code {
                         font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
@@ -962,9 +1106,6 @@ private fun CodeWebView(
                 <script>
                     hljs.highlightAll();
                     
-                    if (window.Android) {
-                        window.Android.onCodeRendered($renderToken, document.body.scrollHeight);
-                    }
                 </script>
             </body>
             </html>
@@ -985,6 +1126,10 @@ private fun CodeWebView(
                 factory = { ctx ->
                     WebView(ctx).apply {
                         setBackgroundColor(android.graphics.Color.TRANSPARENT)
+                        isHorizontalScrollBarEnabled = true
+                        isVerticalScrollBarEnabled = false
+                        isScrollbarFadingEnabled = false
+                        scrollBarStyle = android.view.View.SCROLLBARS_INSIDE_OVERLAY
                         settings.apply {
                             javaScriptEnabled = true
                             domStorageEnabled = true
@@ -1004,21 +1149,6 @@ private fun CodeWebView(
                             }
 
                             @android.webkit.JavascriptInterface
-                            fun onCodeRendered(token: Int, newHeight: Int) {
-                                android.os.Handler(android.os.Looper.getMainLooper()).post {
-                                    if (token == activeRenderToken.value) {
-                                        val newDpHeight = newHeight.dp * 1.035f
-                                        val measuredHeight = newDpHeight.coerceAtLeast(50.dp)
-                                        height.value = if (renderKey == 0) {
-                                            maxOf(height.value, measuredHeight)
-                                        } else {
-                                            measuredHeight
-                                        }
-                                    }
-                                }
-                            }
-
-                            @android.webkit.JavascriptInterface
                             fun onMermaidError(token: Int, message: String) {
                                 android.os.Handler(android.os.Looper.getMainLooper()).post {
                                     if (token == activeRenderToken.value) {
@@ -1032,8 +1162,11 @@ private fun CodeWebView(
                             @SuppressLint("ClickableViewAccessibility")
                             override fun onPageFinished(view: WebView?, url: String?) {
                                 super.onPageFinished(view, url)
-                                view?.setOnTouchListener { _, _ -> true }
                             }
+                        }
+                        setOnTouchListener { view, event ->
+                            view.parent?.requestDisallowInterceptTouchEvent(true)
+                            false
                         }
                     }
                 },
