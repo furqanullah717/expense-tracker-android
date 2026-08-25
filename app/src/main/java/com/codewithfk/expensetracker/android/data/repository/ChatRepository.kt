@@ -1,12 +1,12 @@
 package com.codewithfk.expensetracker.android.data.repository
 
 import android.util.Log
-import com.codewithfk.expensetracker.android.ai.chat_agent.data.ChatSessionEntity
 import com.codewithfk.expensetracker.android.data.dao.ChatDao
 import com.codewithfk.expensetracker.android.data.model.ChatMessageEntity
+import com.codewithfk.expensetracker.android.data.model.ChatSessionEntity
 import com.codewithfk.expensetracker.android.utils.Utils
 import com.google.firebase.Firebase
-import com.google.firebase.auth.auth
+import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.firestore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
@@ -22,7 +22,7 @@ class ChatRepository @Inject constructor(
     private val TAG = "ChatRepository"
 
     private fun getCurrentUserId(): String {
-        val uid = Firebase.auth.currentUser?.uid ?: "anonymous"
+        val uid = FirebaseAuth.getInstance().currentUser?.uid ?: "anonymous"
         Log.d(TAG, "Current User ID: $uid")
         return uid
     }
@@ -84,6 +84,21 @@ class ChatRepository @Inject constructor(
         }
     }
 
+    suspend fun renameSession(sessionId: Int, title: String) {
+        val session = chatDao.getSessionById(sessionId) ?: return
+        chatDao.updateSessionInfo(sessionId, title, session.lastMessageTime)
+        val uid = getCurrentUserId()
+        if (uid != "anonymous" && session.firestoreId.isNotBlank()) {
+            try {
+                getUserSessionsCollection(uid).document(session.firestoreId)
+                    .update("title", title).await()
+                Log.d(TAG, "Session renamed in Firestore: ${session.firestoreId}")
+            } catch (e: Exception) {
+                Log.e(TAG, "Error renaming session in Firestore: ${e.message}")
+            }
+        }
+    }
+
     suspend fun updateSessionLastTime(sessionId: Int, timestamp: Long) {
         chatDao.updateSessionLastTime(sessionId, timestamp)
         val uid = getCurrentUserId()
@@ -131,7 +146,13 @@ class ChatRepository @Inject constructor(
                         "provider" to message.provider,
                         "appCheckStatus" to message.appCheckStatus,
                         "deviceModel" to message.deviceModel,
-                        "osVersion" to message.osVersion
+                        "osVersion" to message.osVersion,
+                        "detailsJson" to message.detailsJson,
+                        "firstPassPrompt" to message.firstPassPrompt,
+                        "firstPassResponse" to message.firstPassResponse,
+                        "secondPassPrompt" to message.secondPassPrompt,
+                        "secondPassResponse" to message.secondPassResponse,
+                        "thoughtsTokens" to message.thoughtsTokens
                     )
                     getUserMessagesCollection(uid, session.firestoreId).document(firestoreId).set(data).await()
                     Log.d(TAG, "Message synced to Firestore: $firestoreId")
@@ -159,12 +180,19 @@ class ChatRepository @Inject constructor(
         provider: String,
         appCheckStatus: String,
         deviceModel: String,
-        osVersion: String
+        osVersion: String,
+        firstPassPrompt: String? = null,
+        firstPassResponse: String? = null,
+        secondPassPrompt: String? = null,
+        secondPassResponse: String? = null,
+        thoughtsTokens: Int? = null
     ) {
         chatDao.updateMessageMetadata(
             messageId, promptTokens, candidatesTokens, totalTokens,
             responseTimeMs, estimatedCostUsd, estimatedCostKrw,
-            modelName, agentVersion, provider, appCheckStatus, deviceModel, osVersion
+            modelName, agentVersion, provider, appCheckStatus, deviceModel, osVersion,
+            firstPassPrompt, firstPassResponse, secondPassPrompt, secondPassResponse,
+            thoughtsTokens
         )
         
         val uid = getCurrentUserId()
@@ -187,7 +215,13 @@ class ChatRepository @Inject constructor(
                             "provider" to provider,
                             "appCheckStatus" to appCheckStatus,
                             "deviceModel" to deviceModel,
-                            "osVersion" to osVersion
+                            "osVersion" to osVersion,
+                            "detailsJson" to message.detailsJson,
+                            "firstPassPrompt" to firstPassPrompt,
+                            "firstPassResponse" to firstPassResponse,
+                            "secondPassPrompt" to secondPassPrompt,
+                            "secondPassResponse" to secondPassResponse,
+                            "thoughtsTokens" to thoughtsTokens
                         )
                         getUserMessagesCollection(uid, session.firestoreId).document(message.firestoreId).update(updates).await()
                         Log.d(TAG, "Metadata synced to Firestore for message: ${message.firestoreId}")
@@ -201,6 +235,27 @@ class ChatRepository @Inject constructor(
 
     suspend fun updateMessageContent(messageId: Int, content: String) {
         chatDao.updateMessageContent(messageId, content)
+    }
+
+    suspend fun updateMessageDetails(messageId: Int, detailsJson: String) {
+        chatDao.updateMessageDetails(messageId, detailsJson)
+        val uid = getCurrentUserId()
+        if (uid != "anonymous") {
+            try {
+                val message = chatDao.getMessageById(messageId)
+                if (message != null && message.firestoreId.isNotBlank()) {
+                    val session = chatDao.getSessionById(message.sessionId)
+                    if (session?.firestoreId?.isNotBlank() == true) {
+                        getUserMessagesCollection(uid, session.firestoreId)
+                            .document(message.firestoreId)
+                            .update("detailsJson", detailsJson)
+                            .await()
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error syncing detailsJson to Firestore: ${e.message}")
+            }
+        }
     }
 
     suspend fun updateMessageContentAndSync(messageId: Int, content: String) {
@@ -308,7 +363,13 @@ class ChatRepository @Inject constructor(
                         provider = msgDoc.getString("provider"),
                         appCheckStatus = msgDoc.getString("appCheckStatus"),
                         deviceModel = msgDoc.getString("deviceModel"),
-                        osVersion = msgDoc.getString("osVersion")
+                        osVersion = msgDoc.getString("osVersion"),
+                        detailsJson = msgDoc.getString("detailsJson"),
+                        firstPassPrompt = msgDoc.getString("firstPassPrompt"),
+                        firstPassResponse = msgDoc.getString("firstPassResponse"),
+                        secondPassPrompt = msgDoc.getString("secondPassPrompt"),
+                        secondPassResponse = msgDoc.getString("secondPassResponse"),
+                        thoughtsTokens = msgDoc.getLong("thoughtsTokens")?.toInt()
                     )
                 }
                 if (messageEntities.isNotEmpty()) {

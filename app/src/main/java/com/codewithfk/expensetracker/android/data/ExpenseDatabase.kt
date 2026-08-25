@@ -6,17 +6,17 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
-import com.codewithfk.expensetracker.android.ai.chat_agent.data.ChatSessionEntity
 import com.codewithfk.expensetracker.android.data.dao.AiAnalysisDao
 import com.codewithfk.expensetracker.android.data.dao.ChatDao
 import com.codewithfk.expensetracker.android.data.dao.ExpenseDao
 import com.codewithfk.expensetracker.android.data.model.AiAnalysisEntity
 import com.codewithfk.expensetracker.android.data.model.ChatMessageEntity
+import com.codewithfk.expensetracker.android.data.model.ChatSessionEntity
 import com.codewithfk.expensetracker.android.data.model.ExpenseEntity
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Singleton
 
-@Database(entities = [ExpenseEntity::class, AiAnalysisEntity::class, ChatMessageEntity::class, ChatSessionEntity::class], version = 13, exportSchema = false)
+@Database(entities = [ExpenseEntity::class, AiAnalysisEntity::class, ChatMessageEntity::class, ChatSessionEntity::class], version = 16, exportSchema = false)
 @Singleton
 abstract class ExpenseDatabase : RoomDatabase() {
 
@@ -37,7 +37,7 @@ abstract class ExpenseDatabase : RoomDatabase() {
                     ExpenseDatabase::class.java,
                     DATABASE_NAME
                 )
-                    .addMigrations(MIGRATION_1_2)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16)
                     .fallbackToDestructiveMigration()
                     .build()
                 INSTANCE = instance
@@ -74,5 +74,26 @@ val MIGRATION_1_2 = object : Migration(1, 2) {
 
         // Step 4: Rename the new table to the original table name
         database.execSQL("ALTER TABLE expense_table_new RENAME TO expense_table")
+    }
+}
+
+val MIGRATION_13_14 = object : Migration(13, 14) {
+    override fun migrate(database: SupportSQLiteDatabase) {
+        database.execSQL("ALTER TABLE chat_message_table ADD COLUMN detailsJson TEXT")
+    }
+}
+
+val MIGRATION_14_15 = object : Migration(14, 15) {
+    override fun migrate(database: SupportSQLiteDatabase) {
+        database.execSQL("ALTER TABLE chat_message_table ADD COLUMN firstPassPrompt TEXT")
+        database.execSQL("ALTER TABLE chat_message_table ADD COLUMN firstPassResponse TEXT")
+        database.execSQL("ALTER TABLE chat_message_table ADD COLUMN secondPassPrompt TEXT")
+        database.execSQL("ALTER TABLE chat_message_table ADD COLUMN secondPassResponse TEXT")
+    }
+}
+
+val MIGRATION_15_16 = object : Migration(15, 16) {
+    override fun migrate(database: SupportSQLiteDatabase) {
+        database.execSQL("ALTER TABLE chat_message_table ADD COLUMN thoughtsTokens INTEGER")
     }
 }

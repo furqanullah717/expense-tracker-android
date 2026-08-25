@@ -23,7 +23,13 @@ data class ChatMessageEntity(
     val provider: String? = null,
     val appCheckStatus: String? = null,
     val deviceModel: String? = null,
-    val osVersion: String? = null
+    val osVersion: String? = null,
+    val detailsJson: String? = null,
+    val firstPassPrompt: String? = null,
+    val firstPassResponse: String? = null,
+    val secondPassPrompt: String? = null,
+    val secondPassResponse: String? = null,
+    val thoughtsTokens: Int? = null
 ) {
     companion object {
         const val ROLE_USER = "user"

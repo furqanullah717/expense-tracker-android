@@ -4,7 +4,7 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
-import com.codewithfk.expensetracker.android.ai.chat_agent.data.ChatSessionEntity
+import com.codewithfk.expensetracker.android.data.model.ChatSessionEntity
 import com.codewithfk.expensetracker.android.data.model.ChatMessageEntity
 import kotlinx.coroutines.flow.Flow
 
@@ -61,6 +61,9 @@ interface ChatDao {
     @Query("UPDATE chat_message_table SET content = :content WHERE id = :messageId")
     suspend fun updateMessageContent(messageId: Int, content: String)
 
+    @Query("UPDATE chat_message_table SET detailsJson = :detailsJson WHERE id = :messageId")
+    suspend fun updateMessageDetails(messageId: Int, detailsJson: String)
+
     @Query("""
         UPDATE chat_message_table 
         SET promptTokens = :promptTokens, 
@@ -74,7 +77,12 @@ interface ChatDao {
             provider = :provider,
             appCheckStatus = :appCheckStatus,
             deviceModel = :deviceModel,
-            osVersion = :osVersion
+            osVersion = :osVersion,
+            firstPassPrompt = :firstPassPrompt,
+            firstPassResponse = :firstPassResponse,
+            secondPassPrompt = :secondPassPrompt,
+            secondPassResponse = :secondPassResponse,
+            thoughtsTokens = :thoughtsTokens
         WHERE id = :messageId
     """)
     suspend fun updateMessageMetadata(
@@ -90,7 +98,12 @@ interface ChatDao {
         provider: String,
         appCheckStatus: String,
         deviceModel: String,
-        osVersion: String
+        osVersion: String,
+        firstPassPrompt: String? = null,
+        firstPassResponse: String? = null,
+        secondPassPrompt: String? = null,
+        secondPassResponse: String? = null,
+        thoughtsTokens: Int? = null
     )
 
     @Query("SELECT * FROM chat_message_table WHERE userId = :userId")

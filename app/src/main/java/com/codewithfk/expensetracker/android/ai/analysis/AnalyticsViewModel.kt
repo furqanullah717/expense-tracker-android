@@ -3,8 +3,8 @@ package com.codewithfk.expensetracker.android.ai.analysis
 import android.content.Context
 import android.util.Log
 import androidx.lifecycle.viewModelScope
-import com.codewithfk.expensetracker.android.ai.core.AiGateway
-import com.codewithfk.expensetracker.android.ai.core.model.AiAnalysisReport
+import com.codewithfk.expensetracker.android.ai.gateway.AiGateway
+import com.codewithfk.expensetracker.android.ai.model.AiAnalysisReport
 import com.codewithfk.expensetracker.android.base.BaseViewModel
 import com.codewithfk.expensetracker.android.base.UiEvent
 import com.codewithfk.expensetracker.android.data.dao.AiAnalysisDao
@@ -154,8 +154,10 @@ class AnalyticsViewModel @Inject constructor(
                     val promptTokens = resultData.promptTokens ?: 0
                     val candidatesTokens = resultData.candidatesTokens ?: 0
                     val totalTokens = resultData.totalTokens ?: (promptTokens + candidatesTokens)
+                    val thoughtsTokens = resultData.thoughtsTokens ?: 0
 
-                    val costUsd = Utils.calculateCostUsd(promptTokens, candidatesTokens)
+
+                    val costUsd = Utils.calculateCostUsd(modelName = resultData.modelName, promptTokens = promptTokens, candidatesTokens = candidatesTokens, thoughtsTokens = thoughtsTokens)
                     val costKrw = Utils.calculateCostKrw(costUsd)
 
                     val entity = AiAnalysisEntity(

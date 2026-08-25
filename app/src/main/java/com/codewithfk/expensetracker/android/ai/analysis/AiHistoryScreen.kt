@@ -9,6 +9,11 @@ import android.provider.MediaStore
 import android.util.Log
 import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -431,7 +436,12 @@ fun AiHistoryCard(
                 )
             }
 
-            AnimatedVisibility(visible = isReportExpanded) {
+            AnimatedVisibility(
+                visible = isReportExpanded,
+                enter = expandVertically(animationSpec = tween(300)) + fadeIn(animationSpec = tween(300)),
+                exit = shrinkVertically(animationSpec = tween(300)) + fadeOut(animationSpec = tween(300)),
+                modifier = Modifier.fillMaxWidth()
+            ) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -514,7 +524,12 @@ fun AiHistoryCard(
                 )
             }
 
-            AnimatedVisibility(visible = isPromptExpanded) {
+            AnimatedVisibility(
+                visible = isPromptExpanded,
+                enter = expandVertically(animationSpec = tween(300)) + fadeIn(animationSpec = tween(300)),
+                exit = shrinkVertically(animationSpec = tween(300)) + fadeOut(animationSpec = tween(300)),
+                modifier = Modifier.fillMaxWidth()
+            ) {
                 Surface(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -558,7 +573,12 @@ fun AiHistoryCard(
                     )
                 }
 
-                AnimatedVisibility(visible = isRawJsonExpanded) {
+                AnimatedVisibility(
+                    visible = isRawJsonExpanded,
+                    enter = expandVertically(animationSpec = tween(300)) + fadeIn(animationSpec = tween(300)),
+                    exit = shrinkVertically(animationSpec = tween(300)) + fadeOut(animationSpec = tween(300)),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
                     Surface(
                         modifier = Modifier
                             .fillMaxWidth()

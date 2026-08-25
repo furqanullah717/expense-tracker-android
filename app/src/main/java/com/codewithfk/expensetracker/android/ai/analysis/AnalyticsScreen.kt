@@ -3,13 +3,6 @@
 package com.codewithfk.expensetracker.android.ai.analysis
 
 import android.view.LayoutInflater
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -53,7 +46,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
@@ -68,7 +60,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.codewithfk.expensetracker.android.R
 import com.codewithfk.expensetracker.android.ai.AiLoadingIndicator
-import com.codewithfk.expensetracker.android.ai.core.model.AiAnalysisReport
+import com.codewithfk.expensetracker.android.ai.model.AiAnalysisReport
 import com.codewithfk.expensetracker.android.data.model.AiAnalysisEntity
 import com.codewithfk.expensetracker.android.feature.home.TransactionList
 import com.codewithfk.expensetracker.android.ui.theme.Zinc

@@ -1,4 +1,4 @@
-package com.codewithfk.expensetracker.android.ai.chat_agent.data
+package com.codewithfk.expensetracker.android.data.model
 
 import androidx.room.Entity
 import androidx.room.PrimaryKey

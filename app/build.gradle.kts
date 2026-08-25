@@ -1,3 +1,4 @@
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 plugins {
     alias(libs.plugins.androidApplication)
     alias(libs.plugins.jetbrainsKotlinAndroid)
@@ -5,7 +6,7 @@ plugins {
     alias(libs.plugins.dagger.hilt)
     alias(libs.plugins.google.services)
     alias(libs.plugins.compose.compiler)
-    kotlin("plugin.serialization") version "2.0.21"
+    kotlin("plugin.serialization") version "2.3.0"
 }
 
 android {
@@ -38,9 +39,6 @@ android {
         sourceCompatibility = JavaVersion.VERSION_1_8
         targetCompatibility = JavaVersion.VERSION_1_8
     }
-    kotlinOptions {
-        jvmTarget = "1.8"
-    }
     buildFeatures {
         compose = true
         buildConfig = true
@@ -51,7 +49,11 @@ android {
         }
     }
 }
-
+kotlin {
+    compilerOptions {
+        jvmTarget.set(JvmTarget.JVM_1_8)
+    }
+}
 dependencies {
 
     implementation(libs.androidx.core.ktx)
@@ -64,20 +66,24 @@ dependencies {
     implementation(libs.androidx.material3)
     implementation(libs.constraintlayout)
     implementation("androidx.constraintlayout:constraintlayout-compose:1.0.1")
-    implementation(libs.firebase.database.ktx)
-    implementation(platform(libs.firebase.bom))
-    implementation(libs.firebase.vertexai)
-    implementation(libs.firebase.analytics)
+
+    implementation(platform("com.google.firebase:firebase-bom:34.18.0"))
+
+    implementation("com.google.firebase:firebase-ai")
+    implementation("com.google.firebase:firebase-database")
+    implementation("com.google.firebase:firebase-analytics")
     implementation("com.google.firebase:firebase-firestore")
     implementation("com.google.firebase:firebase-storage")
     implementation("com.google.firebase:firebase-auth")
+
     implementation("com.google.firebase:firebase-appcheck-playintegrity")
     implementation("com.google.firebase:firebase-appcheck-debug")
-    implementation("com.google.android.gms:play-services-auth:21.2.0")
+
     implementation("androidx.credentials:credentials:1.3.0")
     implementation("androidx.credentials:credentials-play-services-auth:1.3.0")
     implementation("com.google.android.libraries.identity.googleid:googleid:1.1.1")
-    implementation(libs.google.ai.client)
+    implementation("com.google.android.gms:play-services-auth:21.2.0")
+
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.3")
     testImplementation(libs.junit)
     implementation(libs.dagger.hilt.andriod)
@@ -100,7 +106,7 @@ dependencies {
     implementation(libs.coil.svg)
     
     implementation("androidx.compose.foundation:foundation:1.7.0-beta07")
-    val room_version = "2.6.1"
+    val room_version = "2.8.4"
     implementation("androidx.room:room-runtime:$room_version")
     annotationProcessor("androidx.room:room-compiler:$room_version")
     kapt("androidx.room:room-compiler:$room_version")

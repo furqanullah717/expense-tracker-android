@@ -43,12 +43,12 @@ import com.codewithfk.expensetracker.android.ai.analysis.AnalyticsScreen
 import com.codewithfk.expensetracker.android.feature.transaction_detail.TransactionDetailScreen
 import com.codewithfk.expensetracker.android.feature.transactionlist.TransactionListScreen
 import com.google.firebase.Firebase
-import com.google.firebase.auth.auth
+import com.google.firebase.auth.FirebaseAuth
 
 @Composable
 fun NavHostScreen() {
     val navController = rememberNavController()
-    val isUserLoggedIn = remember { Firebase.auth.currentUser != null }
+    val isUserLoggedIn = remember { FirebaseAuth.getInstance().currentUser != null }
     val startDestination = if (isUserLoggedIn) "/home" else "/login"
 
     var bottomBarVisibility by remember {
@@ -97,7 +97,7 @@ fun NavHostScreen() {
             }
             composable(route = "/agent") {
                 bottomBarVisibility = false
-                AgentScreen()
+                AgentScreen(navController)
             }
             composable(route = "/ai_history") {
                 bottomBarVisibility = false

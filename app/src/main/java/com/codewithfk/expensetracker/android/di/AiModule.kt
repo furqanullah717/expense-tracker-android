@@ -1,7 +1,7 @@
 package com.codewithfk.expensetracker.android.di
 
-import com.codewithfk.expensetracker.android.ai.core.AiGateway
-import com.codewithfk.expensetracker.android.ai.core.FirebaseAiGateway
+import com.codewithfk.expensetracker.android.ai.gateway.AiGateway
+import com.codewithfk.expensetracker.android.ai.gateway.FirebaseAiGateway
 import dagger.Binds
 import dagger.Module
 import dagger.hilt.InstallIn

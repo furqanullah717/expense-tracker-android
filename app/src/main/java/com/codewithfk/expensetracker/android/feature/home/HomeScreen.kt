@@ -53,7 +53,7 @@ import com.codewithfk.expensetracker.android.ui.theme.Red
 import com.codewithfk.expensetracker.android.ui.theme.Typography
 import com.codewithfk.expensetracker.android.utils.Utils
 import com.google.firebase.Firebase
-import com.google.firebase.auth.auth
+import com.google.firebase.auth.FirebaseAuth
 
 
 @Composable
@@ -90,7 +90,7 @@ fun HomeScreen(navController: NavController, viewModel: HomeViewModel = hiltView
                     start.linkTo(parent.start)
                     end.linkTo(parent.end)
                 })
-            val currentUser = remember { Firebase.auth.currentUser }
+            val currentUser = remember { FirebaseAuth.getInstance().currentUser }
             val userName = remember(currentUser) {
                 currentUser?.displayName?.takeIf { it.isNotBlank() }
                     ?: currentUser?.email?.substringBefore("@")?.takeIf { it.isNotBlank() }

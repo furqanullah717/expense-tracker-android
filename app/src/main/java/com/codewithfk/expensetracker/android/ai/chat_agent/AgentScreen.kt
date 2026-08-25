@@ -5,16 +5,18 @@ import android.content.Context
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.background
-import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.*
@@ -29,78 +31,23 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.AnnotatedString
-import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.buildAnnotatedString
-import androidx.compose.ui.text.withStyle
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.Dialog
-import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.core.content.FileProvider
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.codewithfk.expensetracker.android.ai.AiLoadingIndicator
-import android.webkit.WebView
-import android.webkit.WebViewClient
-import androidx.compose.foundation.clickable
-import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.font.FontStyle
-import androidx.compose.ui.text.style.TextDecoration
-import androidx.compose.ui.unit.coerceAtLeast
-import androidx.compose.ui.viewinterop.AndroidView
-import androidx.compose.foundation.text.selection.SelectionContainer
-import androidx.compose.foundation.text.ClickableText
 import com.codewithfk.expensetracker.android.data.model.ChatMessageEntity
-import com.codewithfk.expensetracker.android.data.model.ExpenseEntity
-import com.codewithfk.expensetracker.android.ai.core.ChatResponse
+import com.codewithfk.expensetracker.android.ai.gateway.AiModelCatalog
 import com.codewithfk.expensetracker.android.utils.Utils
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import java.text.SimpleDateFormat
 import java.io.File
+import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-
-private object AgentPalette {
-    val geminiOriginalIconTint = Color.Unspecified // Gemini original color icon tint
-    val lightChatBackgroundColor = Color(0xFFF5F7FA) // `Scaffold` 전체 채팅 화면의 라이트 모드 쿨그레이 배경
-    val darkChatBackgroundColor = Color(0xFF0F172A) // `Scaffold` 전체 채팅 화면의 다크 모드 딥 네이비 배경
-    val lightUserMessageBubbleColor = Color(0xFFD9F2F0) // `ChatBubble` 사용자가 보낸 메시지의 라이트 모드 민트 버블
-    val darkUserMessageBubbleColor = Color(0xFF164E63) // `ChatBubble` 사용자가 보낸 메시지의 다크 모드 딥 틸 버블
-    val lightUserMessageTextColor = Color(0xFF0F4C5C) // 라이트 모드 사용자 버블 안의 일반 Markdown 텍스트
-    val darkUserMessageTextColor = Color(0xFFD9F2F0) // 다크 모드 사용자 버블 안의 일반 Markdown 텍스트
-    val lightAssistantMessageBubbleColor = Color(0xFFE9EEF3) // `ChatBubble` AI 답변의 라이트 모드 슬레이트 그레이 버블
-    val darkAssistantMessageBubbleColor = Color(0xFF1E293B) // `ChatBubble` AI 답변의 다크 모드 슬레이트 버블
-    val metadataTextColor = Color(0xFF64748B) // 상단 통계, 시간, 메타데이터의 보조 텍스트
-    val lightEmphasisTextColor = Color(0xFF1565C0) // 라이트 모드 `**강조 텍스트**` 색상
-    val darkEmphasisTextColor = Color(0xFF90CAF9) // 다크 모드 `**강조 텍스트**` 색상
-    val lightPrimaryTextColor = Color(0xFF1565C0) // 라이트 모드 제목, 링크, 인라인 코드 텍스트
-    val darkPrimaryTextColor = Color(0xFF90CAF9) // 다크 모드 제목, 링크, 인라인 코드 텍스트
-    val lightSurfaceColor = Color(0xFFF8FAFC) // 라이트 모드 입력창/보조 표면
-    val darkSurfaceColor = Color(0xFF1E293B) // 다크 모드 입력창/보조 표면
-    val lightVariantTextColor = Color(0xFF475569) // 라이트 모드 보조 텍스트
-    val darkVariantTextColor = Color(0xFFCBD5E1) // 다크 모드 보조 텍스트
-    val lightErrorContainerColor = Color(0xFFFFE4E6) // 라이트 모드 오류 입력창
-    val darkErrorContainerColor = Color(0xFF7F1D1D) // 다크 모드 오류 입력창
-    val codeBackgroundColor = Color(0xFFC7CDD4) // 코드/Mermaid WebView의 라이트 모드 배경
-    val codeDarkBackgroundColor = Color(0xFF1E1E1E) // 코드/Mermaid WebView의 다크 모드 배경
-    const val codeBackgroundHex = "#C7CDD4" // 코드/Mermaid HTML의 라이트 배경
-    const val codeDarkBackgroundHex = "#1E1E1E" // 코드/Mermaid HTML의 다크 배경
-    const val mermaidErrorHex = "#FF5252" // Mermaid 렌더링 오류 문구
-    val attachmentRemoveIconColor = Color.White // 첨부 이미지 제거 버튼 아이콘
-}
-
-private object AgentPaletteLegacy {
-    const val darkTextHex = "#E0E0E0" // 레거시 렌더러 다크 모드 일반 텍스트
-    const val lightTextHex = "#212121" // 레거시 렌더러 라이트 모드 일반 텍스트
-    const val darkCodeBackgroundHex = "#2D2D2D" // 레거시 렌더러 다크 모드 코드 배경
-    const val lightCodeBackgroundHex = "#F5F5F5" // 레거시 렌더러 라이트 모드 코드 배경
-    const val darkBorderHex = "#444444" // 레거시 렌더러 다크 모드 테두리
-    const val lightBorderHex = "#E0E0E0" // 레거시 렌더러 라이트 모드 테두리
-    const val inlineCodeTextHex = "#D81B60" // 레거시 렌더러 인라인 코드 텍스트
-}
 
 private fun createChatImageUri(context: Context): Uri {
     val directory = File(context.cacheDir, "chat_images").apply { mkdirs() }
@@ -111,6 +58,7 @@ private fun createChatImageUri(context: Context): Uri {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AgentScreen(
+    navController: NavController,
     viewModel: AgentViewModel = hiltViewModel()
 ) {
     val darkTheme = isSystemInDarkTheme()
@@ -125,6 +73,8 @@ fun AgentScreen(
     val isLoading by viewModel.isLoading.collectAsState()
     val isStreaming by viewModel.isStreaming.collectAsState()
     val pendingAction by viewModel.pendingAction.collectAsState()
+    val detailItems by viewModel.detailItems.collectAsState()
+    val sessionStats by viewModel.sessionStats.collectAsState()
     val streamingMessageId = messages.lastOrNull { it.role == ChatMessageEntity.ROLE_ASSISTANT }?.id
 
     val listState = rememberLazyListState()
@@ -134,9 +84,10 @@ fun AgentScreen(
     val keyboardController = LocalSoftwareKeyboardController.current
 
     var showDetailDialog by remember { mutableStateOf<ChatMessageEntity?>(null) }
-    var showDeleteConfirmDialog by remember { mutableStateOf<Int?>(null) } // null: none, -1: all, >0: sessionId
+    var showDeleteConfirmDialog by remember { mutableStateOf<Int?>(null) }
+    var showSessionInfoDialog by remember { mutableStateOf<Int?>(null) }
+    var showRenameDialogFor by remember { mutableStateOf<Int?>(null) }
     var showModelSelector by remember { mutableStateOf(false) }
-    var showHistoryLimitSelector by remember { mutableStateOf(false) }
     var previewImageUrl by remember { mutableStateOf<String?>(null) }
     var showAttachmentMenu by remember { mutableStateOf(false) }
     var selectedImageUris by remember { mutableStateOf<List<Uri>>(emptyList()) }
@@ -154,7 +105,6 @@ fun AgentScreen(
         pendingCameraUri = null
     }
 
-    // 메시지 목록이나 마지막 메시지의 내용이 변경될 때마다 하단으로 스크롤
     LaunchedEffect(messages.size, messages.lastOrNull()?.content, isLoading) {
         if (messages.isNotEmpty()) {
             delay(120)
@@ -212,8 +162,13 @@ fun AgentScreen(
                             },
                             modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding),
                             badge = {
-                                IconButton(onClick = { showDeleteConfirmDialog = session.id }) {
-                                    Icon(Icons.Default.Delete, contentDescription = "삭제", modifier = Modifier.size(20.dp))
+                                IconButton(
+                                    onClick = {
+                                        viewModel.loadSessionStats(session.id!!)
+                                        showSessionInfoDialog = session.id
+                                    }
+                                ) {
+                                    Icon(Icons.Default.Info, contentDescription = "정보", modifier = Modifier.size(20.dp))
                                 }
                             }
                         )
@@ -265,7 +220,6 @@ fun AgentScreen(
                         }
                     },
                     actions = {
-                        // 모델 선택 버튼
                         Box {
                             IconButton(onClick = { showModelSelector = true }) {
                                 Icon(
@@ -273,8 +227,8 @@ fun AgentScreen(
                                     contentDescription = "Select Model",
                                     modifier = Modifier
                                         .size(24.dp)
-                                        .alpha(if (selectedModel.contains("pro") || selectedModel.contains("lite")) 1f else 0.75f),
-                                    tint = if (selectedModel.contains("lite"))
+                                        .alpha(if (selectedModel == AiModelCatalog.smartModelName || selectedModel == AiModelCatalog.liteModelName) 1f else 0.75f),
+                                    tint = if (selectedModel == AiModelCatalog.liteModelName)
                                         AgentPalette.metadataTextColor
                                     else AgentPalette.geminiOriginalIconTint
                                 )
@@ -283,7 +237,6 @@ fun AgentScreen(
                                 expanded = showModelSelector,
                                 onDismissRequest = { showModelSelector = false }
                             ) {
-                                // ========== 1. 모델 선택 섹션 ==========
                                 Text(
                                     text = "🤖 모델 선택",
                                     style = MaterialTheme.typography.labelSmall,
@@ -292,9 +245,9 @@ fun AgentScreen(
                                 )
 
                                 listOf(
-                                    "gemini-2.5-flash-lite" to "Flash Lite (Fast)",
-                                    "gemini-2.5-flash" to "Flash (Balanced)",
-                                    "gemini-2.5-pro" to "Pro (Smart)"
+                                    AiModelCatalog.liteModelName to "Flash Lite (Fast)",
+                                    AiModelCatalog.modelName to "Flash (Balanced)",
+                                    AiModelCatalog.smartModelName to "Pro (Smart)"
                                 ).forEach { (modelId, label) ->
                                     DropdownMenuItem(
                                         text = { Text(label) },
@@ -310,10 +263,8 @@ fun AgentScreen(
                                         }
                                     )
                                 }
-                                // ========== 구분선 ==========
-                                Divider(modifier = Modifier.padding(vertical = 4.dp))
+                                HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
 
-                                // ========== 2. 대화 길이 선택 섹션 ==========
                                 Text(
                                     text = "📏 전송할 대화 길이",
                                     style = MaterialTheme.typography.labelSmall,
@@ -358,7 +309,6 @@ fun AgentScreen(
                     .padding(padding)
             ) {
                 if (messages.isEmpty() && currentSessionId == null) {
-                    // 빈 상태 UI
                     Box(modifier = Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Icon(
@@ -382,7 +332,17 @@ fun AgentScreen(
                         contentPadding = PaddingValues(16.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        items(messages) { message ->
+                        // [성능 최적화 4번: key + contentType]
+                        // key: 각 메시지를 고유 id로 식별해, 리스트가 갱신돼도 Compose가
+                        //   "어떤 아이템이 추가/이동/변경됐는지" 정확히 추적한다.
+                        //   (id가 null인 임시 항목 방지용 폴백: timestamp 기반 음수 값)
+                        // contentType: 사용자/어시스턴트 말풍선은 구조가 다른 컴포저블이므로
+                        //   타입을 나눠 표시하면 스크롤 시 구성 슬롯을 더 효율적으로 재사용한다.
+                        items(
+                            messages,
+                            key = { it.id ?: -it.timestamp.toInt() },
+                            contentType = { if (it.role == ChatMessageEntity.ROLE_USER) "user" else "assistant" }
+                        ) { message ->
                             if (message.content.isNotEmpty()) {
                                 ChatBubble(
                                     message,
@@ -391,10 +351,11 @@ fun AgentScreen(
                                     onImageClick = { previewImageUrl = it },
                                     onAskGemini = { errorMessage ->
                                         viewModel.sendMessage(
-                                            "오류가 발생한 Mermaid 코드를 오류가 안나게 수정해서 다시 보내줘:" +
-                                                    "\n\n" +
-                                                    errorMessage
+                                            "오류가 발생한 Mermaid 코드를 오류가 안나게 수정해서 다시 보내줘:\n\n$errorMessage"
                                         )
+                                    },
+                                    onShowDetailsAtIndex = { index ->
+                                        viewModel.showDetailsAtIndex(message, index)
                                     }
                                 )
                             }
@@ -405,14 +366,13 @@ fun AgentScreen(
                                     modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
                                     contentAlignment = Alignment.CenterStart
                                 ) {
-                                    AiLoadingIndicator(isClockwiseRotation = true ,modifier = Modifier.size(32.dp))
+                                    AiLoadingIndicator(isClockwiseRotation = true, modifier = Modifier.size(32.dp))
                                 }
                             }
                         }
                     }
                 }
 
-                // Modern Floating Input Bar
                 Surface(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -508,8 +468,7 @@ fun AgentScreen(
                             OutlinedTextField(
                                 value = chatInput,
                                 onValueChange = { viewModel.onChatInputChanged(it) },
-                                modifier = Modifier
-                                    .weight(1f),
+                                modifier = Modifier.weight(1f),
                                 placeholder = {
                                     Text(
                                         "AI에게 물어보세요...",
@@ -565,13 +524,13 @@ fun AgentScreen(
         }
     }
 
-    // 상세 정보 다이얼로그
     if (showDetailDialog != null) {
         MessageDetailDialog(
             message = showDetailDialog!!,
             onDismiss = { showDetailDialog = null }
         )
     }
+
     previewImageUrl?.let { imageUrl ->
         AlertDialog(
             onDismissRequest = { previewImageUrl = null },
@@ -586,7 +545,6 @@ fun AgentScreen(
         )
     }
 
-    // 삭제 확인 다이얼로그
     if (showDeleteConfirmDialog != null) {
         val isAll = showDeleteConfirmDialog == -1
         AlertDialog(
@@ -613,904 +571,85 @@ fun AgentScreen(
         )
     }
 
-    // AI 액션 확인 다이얼로그 (데이터 조작용)
-    if (pendingAction != null) {
-        ActionConfirmDialog(
-            request = pendingAction!!,
-            onConfirm = { selectedItems -> viewModel.confirmAction(selectedItems) },
-            onDismiss = { viewModel.dismissAction() }
-        )
-    }
-}
-
-@Composable
-fun ActionConfirmDialog(
-    request: ChatResponse.ActionRequest,
-    onConfirm: (List<ExpenseEntity>) -> Unit,
-    onDismiss: () -> Unit
-) {
-    // 원본 리스트를 최신순으로 정렬(또는 반전)하여 사용
-    val sortedItems = remember(request.targetItems) { request.targetItems.reversed() }
-    val selectedItems = remember { mutableStateListOf<ExpenseEntity>().apply { addAll(request.targetItems) } }
-    
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = {
-            val title = when (request.action) {
-                "DELETE" -> "데이터 삭제 확인"
-                "UPDATE" -> "데이터 수정 확인"
-                "INSERT" -> "데이터 추가 확인"
-                else -> "작업 확인"
-            }
-            Text(title, fontWeight = FontWeight.Bold)
-        },
-        text = {
-            Column(modifier = Modifier.fillMaxWidth()) {
-                Text(
-                    text = "AI가 분석한 결과입니다. 아래 항목들에 대해 작업을 진행할까요?",
-                    style = MaterialTheme.typography.bodyMedium
-                )
-                
-                Spacer(modifier = Modifier.height(8.dp))
-
-                // 전체 선택/해제 버튼
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.End,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    val allSelected = selectedItems.size == request.targetItems.size
-                    TextButton(
-                        onClick = {
-                            if (allSelected) {
-                                selectedItems.clear()
-                            } else {
-                                selectedItems.clear()
-                                selectedItems.addAll(request.targetItems)
-                            }
-                        },
-                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)
-                    ) {
-                        Text(
-                            if (allSelected) "전체 해제" else "전체 선택",
-                            style = MaterialTheme.typography.labelMedium
-                        )
-                    }
-                }
-                
-                Surface(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(max = 300.dp),
-                    shape = RoundedCornerShape(12.dp),
-                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
-                ) {
-                    LazyColumn(
-                        modifier = Modifier.padding(8.dp),
-                        verticalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        items(sortedItems) { item ->
-                            val isSelected = selectedItems.contains(item)
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clickable {
-                                        if (isSelected) selectedItems.remove(item) else selectedItems.add(item)
-                                    }
-                                    .padding(vertical = 4.dp)
-                            ) {
-                                Checkbox(
-                                    checked = isSelected,
-                                    onCheckedChange = { checked ->
-                                        if (checked) selectedItems.add(item) else selectedItems.remove(item)
-                                    }
-                                )
-                                Column {
-                                    Text(item.title, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Medium)
-                                    Text(
-                                        "${item.date} | ${Utils.formatCurrency(item.amount)}", 
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-                
-                Spacer(modifier = Modifier.height(12.dp))
-                
-                Text(
-                    text = "💡 이유: ${request.reasoning}",
-                    style = MaterialTheme.typography.labelSmall,
-                    fontStyle = FontStyle.Italic,
-                    color = MaterialTheme.colorScheme.primary
-                )
-            }
-        },
-        confirmButton = {
-            Button(
-                onClick = { onConfirm(selectedItems.toList()) },
-                enabled = selectedItems.isNotEmpty() || request.action == "INSERT",
-                colors = if (request.action == "DELETE") ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
-                         else ButtonDefaults.buttonColors()
-            ) {
-                Text("확인")
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("취소")
-            }
-        }
-    )
-}
-@Composable
-fun AiChatMarkdownView(
-    markdown: String,
-    modifier: Modifier = Modifier,
-    isUser: Boolean = false,
-    isStreaming: Boolean = false,
-    onImageClick: (String) -> Unit = {},
-    onAskGemini: (String) -> Unit = {}
-) {
-    SelectionContainer {
-        Column(modifier = modifier) {
-            parseMarkdownBlocks(markdown).forEach { block ->
-                when (block) {
-                    is MarkdownBlock.Text -> {
-                        val text = markdownText(block.value)
-                        ClickableText(
-                            text = text,
-                            modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
-                            style = MaterialTheme.typography.bodyMedium.copy(
-                                color = if (isUser) {
-                                    if (isSystemInDarkTheme()) AgentPalette.darkUserMessageTextColor else AgentPalette.lightUserMessageTextColor
-                                } else MaterialTheme.colorScheme.onSurface
-                            ),
-                            onClick = { offset ->
-                                text.getStringAnnotations("URL", offset, offset)
-                                    .firstOrNull()?.item
-                                    ?.takeIf { isImageUrl(it) }
-                                    ?.let(onImageClick)
-                            }
-                        )
-                    }
-                    is MarkdownBlock.Code -> {
-                        val isMermaid = block.language == "mermaid"
-                        CodeWebView(
-                            code = block.value,
-                            mermaid = isMermaid && !isStreaming,
-                            renderKey = if (isStreaming) 0 else markdown.hashCode(),
-                            onAskGemini = onAskGemini
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
-
-private sealed interface MarkdownBlock {
-    data class Text(val value: String) : MarkdownBlock
-    data class Code(val value: String, val language: String) : MarkdownBlock
-}
-
-private fun parseMarkdownBlocks(markdown: String): List<MarkdownBlock> {
-    val result = mutableListOf<MarkdownBlock>()
-    val text = StringBuilder()
-    var code: StringBuilder? = null
-    var language = ""
-
-    markdown.lines().forEach { line ->
-        if (line.trimStart().startsWith("```")) {
-            if (code == null) {
-                // 코드 블록 시작
-                if (text.isNotBlank()) {
-                    result += MarkdownBlock.Text(text.toString().trim())
-                }
-                text.clear()
-                code = StringBuilder()
-                language = line.trim().removePrefix("```").trim().lowercase()
-            } else {
-                // 코드 블록 종료
-                result += MarkdownBlock.Code(code.toString().trimEnd(), language)
-                code = null
-                language = ""
-            }
-        } else {
-            if (code != null) {
-                // 코드 블록 내부
-                code.appendLine(line)
-            } else {
-                // 일반 텍스트
-                text.appendLine(line)
-            }
-        }
-    }
-
-    // 마지막 블록 처리
-    if (code != null) {
-        result += MarkdownBlock.Code(code.toString().trimEnd(), language)
-    }
-    if (text.isNotBlank()) {
-        result += MarkdownBlock.Text(text.toString().trim())
-    }
-
-    return result
-}
-
-@Composable
-private fun markdownText(value: String): AnnotatedString = buildAnnotatedString {
-    value.lines().forEachIndexed { index, line ->
-        if (index > 0) append("\n")
-        val clean = line.trimStart()
-        val heading = clean.takeWhile { it == '#' }.length
-        val content = clean.removePrefix("#".repeat(heading)).trim()
-
-        when {
-            heading > 0 -> {
-                // 헤딩
-                withStyle(SpanStyle(
-                    fontWeight = FontWeight.Bold,
-                    fontSize = (20 - heading * 2).sp,
-                    color = if (isSystemInDarkTheme()) AgentPalette.darkPrimaryTextColor else AgentPalette.lightPrimaryTextColor
-                )) {
-                    append(content)
-                }
-            }
-            clean.startsWith("> ") -> {
-                // 인용구
-                withStyle(SpanStyle(
-                    fontStyle = FontStyle.Italic,
-                    color = if (isSystemInDarkTheme()) AgentPalette.darkVariantTextColor else AgentPalette.lightVariantTextColor
-                )) {
-                    append("▎ ")
-                    appendInlineMarkdown(clean.drop(2))
-                }
-            }
-            clean.startsWith("- ") || clean.startsWith("* ") -> {
-                // 리스트
-                withStyle(SpanStyle(color = if (isSystemInDarkTheme()) AgentPalette.darkPrimaryTextColor else AgentPalette.lightPrimaryTextColor)) {
-                    append("• ")
-                }
-                appendInlineMarkdown(clean.drop(2))
-            }
-            clean.matches(Regex("^\\d+\\.\\s.*")) -> {
-                // 숫자 리스트
-                val number = clean.substringBefore(".")
-                withStyle(SpanStyle(color = if (isSystemInDarkTheme()) AgentPalette.darkPrimaryTextColor else AgentPalette.lightPrimaryTextColor)) {
-                    append("$number. ")
-                }
-                appendInlineMarkdown(clean.substringAfter(". ").trim())
-            }
-            else -> appendInlineMarkdown(line)
-        }
-    }
-}
-
-@Composable
-private fun AnnotatedString.Builder.appendInlineMarkdown(value: String) {
-    val regex = Regex("""(\*\*.+?\*\*)|(\*.+?\*)|(`.+?`)|(\[.+?\]\(.+?\))""")
-    var cursor = 0
-
-    regex.findAll(value).forEach { match ->
-        append(value.substring(cursor, match.range.first))
-        val token = match.value
-
-        when {
-            token.startsWith("**") -> {
-                // 굵은 텍스트
-                withStyle(SpanStyle(fontWeight = FontWeight.Bold, color = if (isSystemInDarkTheme()) AgentPalette.darkEmphasisTextColor else AgentPalette.lightEmphasisTextColor)) {
-                    append(token.drop(2).dropLast(2))
-                }
-            }
-            token.startsWith("*") -> {
-                // 기울임 텍스트
-                withStyle(SpanStyle(fontStyle = FontStyle.Italic)) {
-                    append(token.drop(1).dropLast(1))
-                }
-            }
-            token.startsWith("`") -> {
-                // 인라인 코드
-                withStyle(SpanStyle(
-                    fontFamily = FontFamily.Monospace,
-                    background = MaterialTheme.colorScheme.surfaceVariant,
-                    color = MaterialTheme.colorScheme.primary
-                )) {
-                    append(token.drop(1).dropLast(1))
-                }
-            }
-            token.startsWith("[") -> {
-                // 링크
-                val linkText = token.substringAfter("[").substringBefore("]")
-                val linkUrl = token.substringAfter("](").removeSuffix(")")
-                withStyle(SpanStyle(
-                    color = if (isSystemInDarkTheme()) AgentPalette.darkPrimaryTextColor else AgentPalette.lightPrimaryTextColor,
-                    textDecoration = TextDecoration.Underline
-                )) {
-                    addStringAnnotation("URL", linkUrl, start = length, end = length + linkText.length)
-                    append(linkText)
-                }
-            }
-        }
-
-        cursor = match.range.last + 1
-    }
-
-    append(value.substring(cursor))
-}
-
-private fun isImageUrl(url: String): Boolean =
-    url.startsWith("content://") ||
-            Regex("\\.(png|jpe?g|gif|webp|heic)(\\?|%|$)", RegexOption.IGNORE_CASE).containsMatchIn(url)
-
-@Composable
-private fun CodeWebView(
-    code: String,
-    mermaid: Boolean,
-    renderKey: Int = 0,
-    onAskGemini: (String) -> Unit = {}
-) {
-    val dark = isSystemInDarkTheme()
-    val context = LocalContext.current
-    val backgroundColor = if (dark) AgentPalette.codeDarkBackgroundColor else AgentPalette.codeBackgroundColor
-    val backgroundHex = if (dark) AgentPalette.codeDarkBackgroundHex else AgentPalette.codeBackgroundHex
-    val highlightStyle = if (dark) "github-dark" else "github"
-    val mermaidTheme = if (dark) "dark" else "default"
-    val errorColorHex = AgentPalette.mermaidErrorHex
-    val renderToken = listOf(code, mermaid, dark, renderKey).hashCode()
-    val activeRenderToken = rememberUpdatedState(renderToken)
-    // 스트리밍 중 코드 뷰에서 Mermaid 뷰로 전환돼도 오류 메시지를 유지한다.
-    var mermaidError by remember(code) { mutableStateOf<String?>(null) }
-    var showMermaidErrorDialog by remember { mutableStateOf(false) }
-    val height = remember(code, mermaid) {
-        mutableStateOf(
-            if (mermaid) 300.dp
-            else (code.lines().size * 20 + 27).coerceAtLeast(50).dp   // 코드영역 높이 (보정값 +27)
-        )
-    }
-
-    val html = remember(code, mermaid, dark, renderKey) {
-        if (mermaid) {
-            // Mermaid용 HTML
-            val escapedCode = code
-                .replace("\\", "\\\\")
-                .replace("`", "\\`")
-                .replace("${'$'}", "\\${'$'}")
-
-            """
-            <!DOCTYPE html>
-            <html>
-            <head>
-                <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
-                <style>
-                    body { 
-                        margin: 0; 
-                        padding: 16px;
-                        background: $backgroundHex;
-                        overflow: visible;
-                        box-sizing: border-box;
-                    }
-                    #diagram { 
-                        width: 100%;
-                        text-align: center;
-                    }
-                    #diagram svg {
-                        display: block;
-                        width: 100%;
-                        height: auto;
-                        overflow: visible;
-                    }
-                    .error {
-                        color: $errorColorHex;
-                        padding: 10px;
-                        font-family: monospace;
-                    }
-                </style>
-            </head>
-            <body>
-                <div id="diagram"></div>
-                <script>
-                    const mermaidCode = `${escapedCode}`;
-                    
-                    mermaid.initialize({
-                        startOnLoad: true,
-                        theme: '$mermaidTheme',
-                        securityLevel: 'loose',
-                        themeVariables: {
-                            'fontSize': '14px',
-                            'fontFamily': 'sans-serif'
-                        }
-                    });
-                    
-                    async function renderMermaid() {
-                        try {
-                            const { svg } = await mermaid.render('mermaid-diagram', mermaidCode);
-                            document.getElementById('diagram').innerHTML = svg;
-                            if (window.Android) window.Android.onMermaidError($renderToken, '');
-                            
-                            if (window.Android) {
-                                const reportHeight = () => {
-                                    const diagram = document.getElementById('diagram');
-                                    const bodyStyle = window.getComputedStyle(document.body);
-                                    const verticalPadding = parseFloat(bodyStyle.paddingTop) + parseFloat(bodyStyle.paddingBottom);
-                                    const height = Math.ceil(diagram.getBoundingClientRect().height + verticalPadding);
-                                    window.Android.onDiagramRendered($renderToken, height);
-                                };
-                                new ResizeObserver(reportHeight).observe(document.getElementById('diagram'));
-                                requestAnimationFrame(reportHeight);
-                                setTimeout(reportHeight, 100);
-                                setTimeout(reportHeight, 300);
-                                setTimeout(reportHeight, 700);
-                                if (document.fonts?.ready) document.fonts.ready.then(reportHeight);
-                            }
-                        } catch (error) {
-                            console.error('Mermaid error:', error);
-                            if (window.Android) window.Android.onMermaidError($renderToken, String(error?.message || error));
-                            document.getElementById('diagram').innerHTML = 
-                                '<div class="error">Mermaid Error: ' + error.message + '</div>';
-                        }
-                    }
-                    
-                    renderMermaid();
-                </script>
-            </body>
-            </html>
-            """.trimIndent()
-        } else {
-            // 코드 하이라이팅
-            val language = detectLanguage(code)
-
-            """
-            <!DOCTYPE html>
-            <html>
-            <head>
-                <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/$highlightStyle.min.css">
-                <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
-                <style>
-                    body { 
-                        margin: 0; 
-                        padding: 0px;
-                        background: $backgroundHex;
-                        overflow-x: auto;
-                        overflow-y: hidden;
-                    }
-                    ::-webkit-scrollbar { width: 0; height: 3.5px; }  // 스크롤바 높이
-                    ::-webkit-scrollbar-track { background: transparent; }
-                    ::-webkit-scrollbar-thumb { background: #808890; border-radius: 5px; }
-                    pre {
-                        margin: 0;
-                        padding: 0px;
-                        background: $backgroundHex;
-                        border-radius: 6px;
-                        overflow-x: auto;
-                        white-space: pre;
-                    }
-                    code {
-                        font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
-                        font-size: 13px;
-                        line-height: 1.5;
-                    }
-                    .hljs {
-                        background: transparent !important;
-                    }
-                </style>
-            </head>
-            <body>
-                <pre><code class="language-${language}">${escapeHtml(code)}</code></pre>
-                <script>
-                    hljs.highlightAll();
-                    
-                </script>
-            </body>
-            </html>
-            """.trimIndent()
-        }
-    }
-
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(height.value)
-            .clip(RoundedCornerShape(20.dp))
-            .background(backgroundColor)
-    ) {
-        key(mermaid, renderKey) {
-            AndroidView(
-                modifier = Modifier.fillMaxSize(),
-                factory = { ctx ->
-                    WebView(ctx).apply {
-                        setBackgroundColor(android.graphics.Color.TRANSPARENT)
-                        isHorizontalScrollBarEnabled = true
-                        isVerticalScrollBarEnabled = false
-                        isScrollbarFadingEnabled = false
-                        scrollBarStyle = android.view.View.SCROLLBARS_INSIDE_OVERLAY
-                        settings.apply {
-                            javaScriptEnabled = true
-                            domStorageEnabled = true
-                            allowFileAccess = true
-                        }
-
-                        // JavaScript 인터페이스 추가
-                        addJavascriptInterface(object {
-                            @android.webkit.JavascriptInterface
-                            fun onDiagramRendered(token: Int, newHeight: Int) {
-                                android.os.Handler(android.os.Looper.getMainLooper()).post {
-                                    if (token == activeRenderToken.value) {
-                                        val newDpHeight = newHeight.dp + 12.dp
-                                        height.value = newDpHeight.coerceAtLeast(50.dp)
-                                    }
-                                }
-                            }
-
-                            @android.webkit.JavascriptInterface
-                            fun onMermaidError(token: Int, message: String) {
-                                android.os.Handler(android.os.Looper.getMainLooper()).post {
-                                    if (token == activeRenderToken.value) {
-                                        mermaidError = message.takeIf { it.isNotBlank() }
-                                    }
-                                }
-                            }
-                        }, "Android")
-
-                        webViewClient = object : WebViewClient() {
-                            @SuppressLint("ClickableViewAccessibility")
-                            override fun onPageFinished(view: WebView?, url: String?) {
-                                super.onPageFinished(view, url)
-                            }
-                        }
-                        setOnTouchListener { view, event ->
-                            view.parent?.requestDisallowInterceptTouchEvent(true)
-                            false
-                        }
-                    }
+    if (showSessionInfoDialog != null) {
+        sessions.find { it.id == showSessionInfoDialog }?.let { session ->
+            SessionInfoDialog(
+                session = session,
+                stats = sessionStats,
+                onDelete = {
+                    showSessionInfoDialog = null
+                    showDeleteConfirmDialog = session.id
                 },
-                update = { webView ->
-                    if (webView.tag != html) {
-                        webView.loadDataWithBaseURL(
-                            "https://cdn.jsdelivr.net",
-                            html,
-                            "text/html",
-                            "UTF-8",
-                            null
-                        )
-                        webView.tag = html
-                    }
-                }
+                onRename = { showRenameDialogFor = session.id },
+                onDismiss = { showSessionInfoDialog = null }
             )
         }
-        Surface(
-            modifier = Modifier
-                .align(Alignment.TopEnd)
-                .padding(4.dp),
-            shape = RoundedCornerShape(16.dp),
-            color = Color.Transparent
-        ) {
-            Row {
-                Text(
-                    text = "\uD83D\uDD17",  // 복사 아이콘
-                    modifier = Modifier
-                        .clickable {
-                            val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
-                            clipboard.setPrimaryClip(android.content.ClipData.newPlainText("code", code))
-                        }
-                        .padding(8.dp),
-                    fontSize = 16.sp
-                )
+    }
 
-                if (mermaid && mermaidError != null) {
-                    Text(
-                        text = "\uD83D\uDCE2",  // 에러 디테일 창 아이콘
-                        modifier = Modifier
-                            .clickable { showMermaidErrorDialog = true }
-                            .padding(8.dp),
-                        fontSize = 16.sp
-                    )
-                }
-            }
+    if (showRenameDialogFor != null) {
+        sessions.find { it.id == showRenameDialogFor }?.let { session ->
+            RenameSessionDialog(
+                currentTitle = session.title,
+                onConfirm = { newTitle ->
+                    viewModel.renameSession(session.id!!, newTitle)
+                    showRenameDialogFor = null
+                },
+                onDismiss = { showRenameDialogFor = null }
+            )
         }
     }
-    if (showMermaidErrorDialog && mermaidError != null) {
-        val errorMessage = mermaidError.orEmpty()
-        AlertDialog(
-            onDismissRequest = { showMermaidErrorDialog = false },
-            title = { Text("Mermaid 오류") },
-            text = {
-                SelectionContainer {
-                    Column {
-                        Text(errorMessage)
-                        HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp))
-                        Text(
-                            text = code,
-                            style = MaterialTheme.typography.bodySmall.copy(
-                                fontFamily = FontFamily.Monospace
-                            )
-                        )
-                    }
-                }
-            },
-            confirmButton = {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.End
-                ) {
-                    TextButton(
-                        onClick = {
-                            showMermaidErrorDialog = false
-                            onAskGemini(
-                                "$errorMessage\n\n오류가 발생한 Mermaid 원본 코드:\n```mermaid\n$code\n```"
-                            )
-                        }
-                    ) {
-                        Text("Gemini에게 물어보기")
-                    }
-                    TextButton(
-                        onClick = {
-                            val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
-                            clipboard.setPrimaryClip(
-                                android.content.ClipData.newPlainText("mermaid-error", errorMessage)
-                            )
-                        }
-                    ) {
-                        Text("복사")
-                    }
-                    TextButton(onClick = { showMermaidErrorDialog = false }) {
-                        Text("확인")
-                    }
-                }
-            }
+
+    if (detailItems != null) {
+        SimpleDetailListDialog(
+            data = detailItems!!,
+            onDismiss = { viewModel.dismissDetailItems() }
         )
     }
-}
 
-// 언어 감지 함수
-private fun detectLanguage(code: String): String {
-    return when {
-        code.contains("fun ") || code.contains("val ") -> "kotlin"
-        code.contains("def ") || code.contains("import ") -> "python"
-        code.contains("function") || code.contains("const ") -> "javascript"
-        code.contains("class ") || code.contains("public ") -> "java"
-        code.contains("SELECT") || code.contains("INSERT") -> "sql"
-        code.contains("<!DOCTYPE") || code.contains("<html") -> "html"
-        code.contains("{") && code.contains("}") -> "json"
-        else -> "plaintext"
-    }
-}
-
-// HTML 이스케이프 함수
-private fun escapeHtml(text: String): String {
-    return text
-        .replace("&", "&amp;")
-        .replace("<", "&lt;")
-        .replace(">", "&gt;")
-        .replace("\"", "&quot;")
-        .replace("'", "&#x27;")
-        .replace("/", "&#x2F;")
-}
-
-@Composable
-fun LegacyAiChatMarkdownView(
-    markdown: String,
-    modifier: Modifier = Modifier,
-    isUser: Boolean = false
-) {
-    val isDarkTheme = isSystemInDarkTheme()
-    var webViewHeight by remember { mutableStateOf(1.dp) }
-
-    val encodedMarkdown = remember(markdown) {
-        android.util.Base64.encodeToString(markdown.toByteArray(Charsets.UTF_8), android.util.Base64.NO_WRAP)
-    }
-
-    val html = remember(isDarkTheme, encodedMarkdown) {
-        val textColor = if (isDarkTheme) AgentPaletteLegacy.darkTextHex else AgentPaletteLegacy.lightTextHex
-        val codeBg = if (isDarkTheme) AgentPaletteLegacy.darkCodeBackgroundHex else AgentPaletteLegacy.lightCodeBackgroundHex
-        val borderColor = if (isDarkTheme) AgentPaletteLegacy.darkBorderHex else AgentPaletteLegacy.lightBorderHex
-
-        """
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-            <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/${if (isDarkTheme) "github-dark" else "github"}.min.css">
-            <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-            <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
-            <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
-            <style>
-                body {
-                    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
-                    font-size: 15px;
-                    line-height: 1.5;
-                    color: $textColor;
-                    background-color: transparent;
-                    margin: 0;
-                    padding: 0;
-                    word-wrap: break-word;
-                    overflow: hidden;
-                }
-                #content > :first-child {
-                    margin-top: 0;
-                }
-
-                #content > :last-child {
-                    margin-bottom: 0;
-                }
-                pre {
-                    background-color: $codeBg;
-                    padding: 16px;
-                    border-radius: 12px;
-                    overflow-x: auto;
-                    margin: 12px 0;
-                    border: 1px solid $borderColor;
-                }
-                code {
-                    font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
-                    font-size: 13px;
-                }
-                :not(pre) > code {
-                    background-color: $codeBg;
-                    padding: 2px 6px;
-                    border-radius: 6px;
-                    color: ${AgentPaletteLegacy.inlineCodeTextHex};
-                }
-                table {
-                    border-collapse: collapse;
-                    width: 100%;
-                    margin: 12px 0;
-                }
-                th, td {
-                    border: 1px solid $borderColor;
-                    padding: 10px;
-                    text-align: left;
-                }
-                th {
-                    background-color: $codeBg;
-                    font-weight: bold;
-                }
-                .mermaid {
-                    background-color: white;
-                    padding: 12px;
-                    border-radius: 12px;
-                    margin: 16px 0;
-                    display: flex;
-                    justify-content: center;
-                    border: 1px solid $borderColor;
-                }
-                img { max-width: 100%; }
-            </style>
-        </head>
-        <body>
-            <div id="content"></div>
-            <script>
-                mermaid.initialize({ 
-                    startOnLoad: false, 
-                    theme: '${if (isDarkTheme) "dark" else "default"}',
-                    securityLevel: 'loose',
-                    fontFamily: 'inherit'
-                });
-                
-                function sendHeight() {
-                    const height = Math.ceil(document.getElementById('content').getBoundingClientRect().height);
-                    if (window.Android) {
-                        window.Android.updateHeight(height);
+    if (pendingAction != null) {
+        if (pendingAction!!.intent == "APP_ACTION") {
+            LaunchedEffect(pendingAction) {
+                val action = pendingAction!!.action
+                when (action) {
+                    "NAVIGATE_HOME" -> navController.navigate("/home") {
+                        popUpTo(navController.graph.startDestinationId) { saveState = true }
+                        launchSingleTop = true
+                        restoreState = true
+                    }
+                    "NAVIGATE_CHARTS" -> navController.navigate("/analytics") {
+                        launchSingleTop = true
+                        restoreState = true
+                    }
+                    "NAVIGATE_TRANSACTIONS" -> navController.navigate("/all_transactions") {
+                        launchSingleTop = true
+                        restoreState = true
+                    }
+                    "EXPORT_EXCEL" -> {
+                        android.widget.Toast.makeText(context, "엑셀 내보내기 기능을 준비 중입니다.", android.widget.Toast.LENGTH_SHORT).show()
                     }
                 }
-
-                function decodeUTF8(s) {
-                    return decodeURIComponent(atob(s).split('').map(function(c) {
-                        return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
-                    }).join(''));
-                }
-
-                function render(base64Markdown) {
-                    try {
-                        const markdown = decodeUTF8(base64Markdown);
-                        const contentDiv = document.getElementById('content');
-                        contentDiv.innerHTML = marked.parse(markdown);
-                        new ResizeObserver(sendHeight).observe(contentDiv);
-                        
-                        contentDiv.querySelectorAll('pre code').forEach((block) => {
-                            hljs.highlightElement(block);
-                        });
-                        
-                        const mermaidBlocks = contentDiv.querySelectorAll('pre code.language-mermaid');
-                        let mermaidCount = mermaidBlocks.length;
-                        
-                        if (mermaidCount === 0) {
-                            setTimeout(sendHeight, 100);
-                            return;
-                        }
-
-                        mermaidBlocks.forEach((block, index) => {
-                            const pre = block.parentElement;
-                            const code = block.textContent;
-                            const id = 'mermaid-' + index;
-                            const container = document.createElement('div');
-                            container.className = 'mermaid';
-                            container.id = id;
-                            pre.parentNode.replaceChild(container, pre);
-                            
-                            mermaid.render(id + '-svg', code).then(({svg}) => {
-                                container.innerHTML = svg;
-                                mermaidCount--;
-                                if (mermaidCount === 0) setTimeout(sendHeight, 200);
-                            }).catch(err => {
-                                container.innerHTML = '<p style="color:red">Mermaid Error</p>';
-                                mermaidCount--;
-                                if (mermaidCount === 0) sendHeight();
-                            });
-                        });
-                    } catch (e) {
-                        document.getElementById('content').innerText = "Rendering Error: " + e.message;
-                    }
-                }
-                
-                window.onload = () => render('$encodedMarkdown');
-                window.onresize = sendHeight;
-            </script>
-        </body>
-        </html>
-        """.trimIndent()
-    }
-
-    AndroidView(
-        modifier = modifier
-            .fillMaxWidth()
-            .height(webViewHeight),
-        factory = { ctx ->
-            WebView(ctx).apply {
-                webViewClient = WebViewClient()
-                settings.apply {
-                    javaScriptEnabled = true
-                    domStorageEnabled = true
-                    setLayerType(android.view.View.LAYER_TYPE_HARDWARE, null)
-                    cacheMode = android.webkit.WebSettings.LOAD_CACHE_ELSE_NETWORK
-                    databaseEnabled = true
-                    useWideViewPort = false
-                    loadWithOverviewMode = true
-                }
-
-                setBackgroundColor(0)
-                isVerticalScrollBarEnabled = false
-                isHorizontalScrollBarEnabled = false
-
-                addJavascriptInterface(object {
-                    @android.webkit.JavascriptInterface
-                    fun updateHeight(height: Float) {
-                        val heightInDp = height.dp + 8.dp
-                        if (kotlin.math.abs(webViewHeight.value - heightInDp.value) > 3) {
-                            webViewHeight = heightInDp
-                        }
-                    }
-                }, "Android")
+                viewModel.dismissAction()
             }
-        },
-        update = { webView ->
-            val currentTag = webView.tag as? String
-            if (currentTag != encodedMarkdown) {
-                webView.loadDataWithBaseURL("https://local", html, "text/html", "UTF-8", null)
-                webView.tag = encodedMarkdown
-            }
+        } else {
+            ActionConfirmDialog(
+                request = pendingAction!!,
+                onConfirm = { selectedItems -> viewModel.confirmAction(selectedItems) },
+                onDismiss = { viewModel.dismissAction() }
+            )
         }
-    )
+    }
 }
 
 @Composable
 fun ChatBubble(
     message: ChatMessageEntity,
     isStreaming: Boolean = false,
-    onInfoClick: (ChatMessageEntity) -> Unit,
+    onInfoClick: (ChatMessageEntity) -> Unit = {},
     onImageClick: (String) -> Unit = {},
-    onAskGemini: (String) -> Unit = {}
+    onAskGemini: (String) -> Unit = {},
+    onShowDetailsAtIndex: (Int) -> Unit = {}
 ) {
     val isUser = message.role == ChatMessageEntity.ROLE_USER
-
-    // ChatGPT-like color palette
     val darkTheme = isSystemInDarkTheme()
     val bubbleColor = when {
         isUser && darkTheme -> AgentPalette.darkUserMessageBubbleColor
@@ -1520,13 +659,11 @@ fun ChatBubble(
     }
 
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 4.dp),
+        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
         horizontalArrangement = if (isUser) Arrangement.End else Arrangement.Start
     ) {
         Column(
-            modifier = Modifier.fillMaxWidth(0.92f), // 화면 너비를 넓게 사용 (아이콘 공간 제거)
+            modifier = Modifier.fillMaxWidth(0.92f),
             horizontalAlignment = if (isUser) Alignment.End else Alignment.Start
         ) {
             Surface(
@@ -1536,15 +673,15 @@ fun ChatBubble(
             ) {
                 AiChatMarkdownView(
                     markdown = message.content,
-                    modifier = Modifier.padding(start = 12.dp, end = 12.dp, top = 8.dp, bottom = 8.dp),
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
                     isUser = isUser,
                     isStreaming = isStreaming && !isUser,
                     onImageClick = onImageClick,
-                    onAskGemini = onAskGemini
+                    onAskGemini = onAskGemini,
+                    onShowDetailsAtIndex = onShowDetailsAtIndex
                 )
             }
 
-            // 하단 정보 (시간 및 AI 메타데이터)
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.padding(top = 4.dp, start = 4.dp, end = 4.dp)
@@ -1577,14 +714,10 @@ fun AiMetadataView(
     onInfoClick: () -> Unit
 ) {
     Row(
-        modifier = Modifier
-            .padding(start = 4.dp, top = 4.dp),
+        modifier = Modifier.padding(start = 4.dp, top = 4.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        IconButton(
-            onClick = onInfoClick,
-            modifier = Modifier.size(16.dp)
-        ) {
+        IconButton(onClick = onInfoClick, modifier = Modifier.size(16.dp)) {
             Icon(
                 Icons.Default.Info,
                 contentDescription = "Details",
@@ -1592,105 +725,14 @@ fun AiMetadataView(
                 modifier = Modifier.size(12.dp)
             )
         }
-
         Spacer(modifier = Modifier.width(4.dp))
-
         val infoText = buildString {
             append("🤖 ${message.modelName ?: "UNKNOWN"} | ")
             append("🪙 ${String.format(Locale.getDefault(), "%,d", message.totalTokens ?: 0)} | ")
             append("💸 ${Utils.formatCost(message.estimatedCostKrw ?: 0.0)} | ")
             append("⏱️ ${Utils.formatDurationMs(message.responseTimeMs ?: 0)}")
         }
-
-        Text(
-            text = infoText,
-            fontSize = 10.sp,
-            color = AgentPalette.metadataTextColor.copy(alpha = 0.8f)
-        )
-    }
-}
-
-@Composable
-fun MessageDetailDialog(
-    message: ChatMessageEntity,
-    onDismiss: () -> Unit
-) {
-    Dialog(onDismissRequest = onDismiss) {
-        Surface(
-            shape = RoundedCornerShape(24.dp),
-            color = MaterialTheme.colorScheme.surface,
-            tonalElevation = 6.dp,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp)
-        ) {
-            Column(
-                modifier = Modifier
-                    .padding(24.dp)
-                    .fillMaxWidth(),
-                horizontalAlignment = Alignment.Start
-            ) {
-                Text(
-                    text = "상세정보",
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(bottom = 16.dp)
-                )
-
-                DetailRow("Provider", message.provider ?: "Firebase")
-                DetailRow("Model", message.modelName ?: "Unknown")
-                HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp))
-
-                DetailRow("Response Time", Utils.formatDurationMs(message.responseTimeMs ?: 0))
-                DetailRow("Prompt Tokens", String.format(Locale.getDefault(), "%,d", message.promptTokens ?: 0))
-                DetailRow("Candidates Tokens", String.format(Locale.getDefault(), "%,d", message.candidatesTokens ?: 0))
-                DetailRow("Total Tokens", String.format(Locale.getDefault(), "%,d", message.totalTokens ?: 0))
-                DetailRow("Estimated Cost", Utils.formatCost(message.estimatedCostKrw ?: 0.0))
-
-                HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp))
-
-                DetailRow("Device", message.deviceModel ?: Utils.getDeviceModel())
-                DetailRow("OS", message.osVersion ?: Utils.getOsVersion())
-                DetailRow("Auth", message.appCheckStatus ?: "Verified")
-
-                val dateStr = SimpleDateFormat("yyyy-MM-dd", Locale.KOREA).format(Date(message.timestamp))
-                val timeStr = SimpleDateFormat("HH:mm:ss", Locale.KOREA).format(Date(message.timestamp))
-                DetailRow("Date", dateStr)
-                DetailRow("Time", timeStr)
-
-                Spacer(modifier = Modifier.height(24.dp))
-
-                Button(
-                    onClick = onDismiss,
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    Text("Close")
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun DetailRow(label: String, value: String) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 4.dp),
-        horizontalArrangement = Arrangement.SpaceBetween
-    ) {
-        Text(
-            text = label,
-            style = MaterialTheme.typography.bodyMedium,
-            color = AgentPalette.metadataTextColor
-        )
-        Text(
-            text = value,
-            style = MaterialTheme.typography.bodyMedium,
-            fontWeight = FontWeight.Medium,
-            textAlign = TextAlign.End
-        )
+        Text(text = infoText, fontSize = 10.sp, color = AgentPalette.metadataTextColor.copy(alpha = 0.8f))
     }
 }
 

@@ -1,12 +1,12 @@
 package com.codewithfk.expensetracker.android.data.repository
 
 import android.util.Log
-import com.codewithfk.expensetracker.android.ai.core.FirebaseAiGateway
+import com.codewithfk.expensetracker.android.ai.gateway.AiModelCatalog
 import com.codewithfk.expensetracker.android.data.dao.AiAnalysisDao
 import com.codewithfk.expensetracker.android.data.model.AiAnalysisEntity
 import com.google.firebase.Firebase
-import com.google.firebase.auth.auth
 import com.google.firebase.firestore.firestore
+import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.tasks.await
 import java.util.UUID
 import javax.inject.Inject
@@ -19,7 +19,7 @@ class AiHistoryRepository @Inject constructor(
     private val TAG = "AiHistoryRepository"
 
     fun getCurrentUserId(): String {
-        return Firebase.auth.currentUser?.uid ?: "anonymous"
+        return FirebaseAuth.getInstance().currentUser?.uid ?: "anonymous"
     }
 
     private fun getUserCollection(userId: String) =
@@ -157,9 +157,9 @@ class AiHistoryRepository @Inject constructor(
                         totalTokens = (doc.getLong("totalTokens") ?: 0L).toInt(),
                         estimatedCostUsd = doc.getDouble("estimatedCostUsd") ?: 0.0,
                         estimatedCostKrw = doc.getDouble("estimatedCostKrw") ?: 0.0,
-                        modelName = doc.getString("modelName") ?: FirebaseAiGateway.modelName,
-                        agentVersion = doc.getString("agentVersion") ?: FirebaseAiGateway.agentVersion,
-                        provider = doc.getString("provider") ?: FirebaseAiGateway.provider,
+                        modelName = doc.getString("modelName") ?: AiModelCatalog.modelName,
+                        agentVersion = doc.getString("agentVersion") ?: AiModelCatalog.agentVersion,
+                        provider = doc.getString("provider") ?: AiModelCatalog.provider,
                         authMethod = doc.getString("authMethod") ?: "Firebase App Check (Debug/Integrity)",
                         appCheckStatus = doc.getString("appCheckStatus") ?: "Verified",
                         networkType = doc.getString("networkType") ?: "Unknown",
