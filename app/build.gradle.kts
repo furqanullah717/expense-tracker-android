@@ -10,11 +10,11 @@ plugins {
 }
 
 android {
-    namespace = "com.codewithfk.expensetracker.android"
+    namespace = "com.smartspend.ai"
     compileSdk = 34
 
     defaultConfig {
-        applicationId = "com.codewithfk.expensetracker.android"
+        applicationId = "com.smartspend.ai"
         minSdk = 24
         targetSdk = 34
         versionCode = 1
